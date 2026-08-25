@@ -1,0 +1,8 @@
+#!/bin/bash
+# ismini launcher - works from any directory
+#   ismini                → web UI at http://127.0.0.1:8787
+#   ismini --port 9000    → web UI on a custom port
+export PATH="$HOME/.local/bin:$PATH"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+exec node "$DIR/web.js" "$@"
