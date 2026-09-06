@@ -21,7 +21,7 @@ A stripped-down local agent runtime. No gateway, no plugins, no cloud, no depend
 - Model-agnostic — works with whatever model is loaded in LM Studio (auto-detected every turn)
 - Web tools fully local — DuckDuckGo HTML search + direct fetch + local HTML→text parsing (no third-party readers)
 - **No vision** — point it at an image file and it declines gracefully, asking you to describe it (instead of choking on binary data)
-- **📁 File/folder picker** — one click opens your desktop's native file dialog; the chosen path lands in the chat input (nothing is opened or uploaded — just the path). Needs `zenity` (GNOME) or `kdialog` (KDE) — if neither exists, type the path instead
+- **📄 / 📁 File & folder pickers** — one click opens your desktop's native file or folder dialog; the chosen path lands in the chat input (nothing is opened or uploaded — just the path). Needs `zenity` (GNOME) or `kdialog` (KDE) — if neither exists, type the path instead
 
 ## Requirements
 
@@ -80,7 +80,8 @@ The whole app is one folder — it needs only Node.js + LM Studio, so you can al
 | Control | What it does |
 |---------|--------------|
 | **New chat** button | Clear the conversation (start fresh) |
-| **📁 Pick** button (left of the input) | Opens your desktop's native file picker — the chosen file or folder path is inserted into the message box. Nothing is opened or uploaded |
+| **📄 File** button (left of the input) | Opens your desktop's native file picker — the chosen file's path is inserted into the message box. Nothing is opened or uploaded |
+| **📁 Folder** button (left of the input) | Opens your desktop's native folder picker — the chosen folder's path is inserted into the message box |
 | **Pause** button | Interrupt the agent mid-loop — type a suggestion to redirect it |
 | `Ctrl+C` on the server | Stop ismini |
 

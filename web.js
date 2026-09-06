@@ -244,11 +244,19 @@ function runPicker(bin, args) {
   });
 }
 
-async function pickNativeFile() {
-  const candidates = [
-    { bin: 'zenity', args: ['--file-selection', '--title=Pick a file or folder for ismini'] },
-    { bin: 'kdialog', args: ['--getopenfilename', '', '--title', 'Pick a file or folder for ismini'] },
-  ];
+async function pickNativeFile(mode) {
+  // mode: 'file' or 'folder'. kdialog has no single dialog for both
+  // (in file mode, picking a folder just navigates into it), so each
+  // mode gets its own native dialog per desktop.
+  const candidates = mode === 'folder'
+    ? [
+        { bin: 'zenity', args: ['--directory', '--title=Pick a folder for ismini'] },
+        { bin: 'kdialog', args: ['--getexistingdirectory', '', '--title', 'Pick a folder for ismini'] },
+      ]
+    : [
+        { bin: 'zenity', args: ['--file-selection', '--title=Pick a file for ismini'] },
+        { bin: 'kdialog', args: ['--getopenfilename', '', '--title', 'Pick a file for ismini'] },
+      ];
   for (const c of candidates) {
     const r = await runPicker(c.bin, c.args);
     if (r.ran) return r; // success, cancel, or timeout — don't try the next tool
@@ -319,9 +327,10 @@ const server = http.createServer(async (req, res) => {
     }
     else if (req.method === 'GET' && url.pathname === '/api/pick-file') {
       if (pickInProgress) return sendJson(res, 409, { error: 'a file picker is already open' });
+      const mode = url.searchParams.get('mode') === 'folder' ? 'folder' : 'file';
       pickInProgress = true;
       try {
-        const r = await pickNativeFile();
+        const r = await pickNativeFile(mode);
         if (r.path) return sendJson(res, 200, { ok: true, path: r.path });
         if (r.cancelled) return sendJson(res, 200, { ok: false, cancelled: true });
         sendJson(res, 503, { error: r.error || 'file picker unavailable' });

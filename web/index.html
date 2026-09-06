@@ -337,7 +337,7 @@
     padding: 4px 0;
   }
   #input::placeholder { color: #57606a; }
-  #pickBtn {
+  #fileBtn, #folderBtn {
     background: rgba(126,201,143,.10);
     border-color: rgba(126,201,143,.4);
     color: #7ec98f;
@@ -345,7 +345,7 @@
     font-size: 15px;
     line-height: 1;
   }
-  #pickBtn:hover:not(:disabled) { background: rgba(126,201,143,.2); }
+  #fileBtn:hover:not(:disabled), #folderBtn:hover:not(:disabled) { background: rgba(126,201,143,.2); }
   #sendBtn {
     background: rgba(88,166,255,.12);
     border-color: rgba(88,166,255,.4);
@@ -444,7 +444,8 @@
   <footer>
     <button class="scroll-bottom-btn" id="scrollBtn" title="Scroll to latest">↓</button>
     <div class="composer">
-      <button id="pickBtn" title="Pick a file or folder — opens your desktop file picker and inserts the path here">📁</button>
+      <button id="fileBtn" title="Pick a file — opens your desktop file picker and inserts the path here">📄</button>
+      <button id="folderBtn" title="Pick a folder — opens your desktop folder picker and inserts the path here">📁</button>
       <textarea id="input" rows="1" placeholder="Message ismini…  (Enter to send, Shift+Enter for a new line)"></textarea>
       <button id="pauseBtn" title="Pause — type a suggestion to redirect" style="display:none">⏸ Pause</button>
       <button id="sendBtn">Send</button>
@@ -768,13 +769,14 @@
   // Click → server opens zenity/kdialog on the desktop → the chosen path
   // (file or folder) is inserted into the input. Nothing is opened or
   // uploaded — just the path, which the user can edit before sending.
-  const pickBtn = $("pickBtn");
-  pickBtn.addEventListener("click", async () => {
-    if (pickBtn.disabled) return;
-    pickBtn.disabled = true;
-    pickBtn.textContent = "…";
+  const fileBtn = $("fileBtn"), folderBtn = $("folderBtn");
+  async function pickPath(btn, mode) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = "…";
     try {
-      const r = await fetch("/api/pick-file");
+      const r = await fetch("/api/pick-file?mode=" + mode);
       const j = await r.json().catch(() => ({}));
       if (j.ok && j.path) {
         const cur = input.value.replace(/\s+$/, "");
@@ -787,10 +789,12 @@
     } catch (e) {
       toast("file picker failed: " + e.message);
     } finally {
-      pickBtn.disabled = false;
-      pickBtn.textContent = "📁";
+      btn.disabled = false;
+      btn.textContent = orig;
     }
-  });
+  }
+  fileBtn.addEventListener("click", () => pickPath(fileBtn, "file"));
+  folderBtn.addEventListener("click", () => pickPath(folderBtn, "folder"));
 
   // ── SSE ─────────────────────────────────────────────────────────
   const es = new EventSource("/events");
