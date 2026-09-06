@@ -6,6 +6,7 @@
 
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Agent } from './agent.js';
@@ -210,6 +211,53 @@ function readBody(req, limit = 1e6) {
   });
 }
 
+// ── Native file picker ──────────────────────────────────────────────────────
+// Opens a native DESKTOP dialog (zenity on GNOME, kdialog on KDE) and
+// returns the chosen path — a file or a folder. Nothing is opened or
+// uploaded: the path is only inserted into the chat input.
+function runPicker(bin, args) {
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch {
+      return resolve({ ran: false });
+    }
+    let out = '', errOut = '';
+    const timer = setTimeout(() => {
+      try { child.kill('SIGKILL'); } catch { }
+      resolve({ ran: true, error: 'file picker timed out' });
+    }, 300000); // 5 minutes to pick
+    child.stdout.on('data', (d) => { out += d; });
+    child.stderr.on('data', (d) => { errOut += d; });
+    child.on('error', () => { clearTimeout(timer); resolve({ ran: false }); }); // binary missing
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      const path = out.trim().split('\n')[0].trim();
+      if (code === 0 && path) return resolve({ ran: true, path });
+      // Non-zero exit = user cancelled (zenity: 1, kdialog: 10) — unless
+      // stderr shows the dialog couldn't open at all (no display), in which
+      // case we let the caller try the next tool.
+      if (!/display|cannot open/i.test(errOut)) return resolve({ ran: true, cancelled: true });
+      resolve({ ran: false });
+    });
+  });
+}
+
+async function pickNativeFile() {
+  const candidates = [
+    { bin: 'zenity', args: ['--file-selection', '--title=Pick a file or folder for ismini'] },
+    { bin: 'kdialog', args: ['--getopenfilename', '', '--title', 'Pick a file or folder for ismini'] },
+  ];
+  for (const c of candidates) {
+    const r = await runPicker(c.bin, c.args);
+    if (r.ran) return r; // success, cancel, or timeout — don't try the next tool
+  }
+  return { error: 'no native file dialog available (install zenity or kdialog)' };
+}
+
+let pickInProgress = false; // one dialog at a time (button double-clicks)
+
 // ── HTTP server ─────────────────────────────────────────────────────────────
 const INDEX_HTML = readFileSync(join(__dirname, 'web', 'index.html'), 'utf8');
 
@@ -268,6 +316,18 @@ const server = http.createServer(async (req, res) => {
       agent.reset();
       broadcast({ type: 'reset' });
       sendJson(res, 200, { ok: true });
+    }
+    else if (req.method === 'GET' && url.pathname === '/api/pick-file') {
+      if (pickInProgress) return sendJson(res, 409, { error: 'a file picker is already open' });
+      pickInProgress = true;
+      try {
+        const r = await pickNativeFile();
+        if (r.path) return sendJson(res, 200, { ok: true, path: r.path });
+        if (r.cancelled) return sendJson(res, 200, { ok: false, cancelled: true });
+        sendJson(res, 503, { error: r.error || 'file picker unavailable' });
+      } finally {
+        pickInProgress = false;
+      }
     }
     else if (req.method === 'GET' && url.pathname === '/state') {
       const model = await detectModel();

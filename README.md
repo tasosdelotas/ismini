@@ -21,6 +21,7 @@ A stripped-down local agent runtime. No gateway, no plugins, no cloud, no depend
 - Model-agnostic — works with whatever model is loaded in LM Studio (auto-detected every turn)
 - Web tools fully local — DuckDuckGo HTML search + direct fetch + local HTML→text parsing (no third-party readers)
 - **No vision** — point it at an image file and it declines gracefully, asking you to describe it (instead of choking on binary data)
+- **📁 File/folder picker** — one click opens your desktop's native file dialog; the chosen path lands in the chat input (nothing is opened or uploaded — just the path). Needs `zenity` (GNOME) or `kdialog` (KDE) — if neither exists, type the path instead
 
 ## Requirements
 
@@ -79,6 +80,7 @@ The whole app is one folder — it needs only Node.js + LM Studio, so you can al
 | Control | What it does |
 |---------|--------------|
 | **New chat** button | Clear the conversation (start fresh) |
+| **📁 Pick** button (left of the input) | Opens your desktop's native file picker — the chosen file or folder path is inserted into the message box. Nothing is opened or uploaded |
 | **Pause** button | Interrupt the agent mid-loop — type a suggestion to redirect it |
 | `Ctrl+C` on the server | Stop ismini |
 
@@ -114,7 +116,7 @@ Note: even with sudo enabled, ismini still blocks system power actions (`reboot`
 
 ## Architecture
 
-- `web.js` — Web UI server: local HTTP + SSE streaming, model auto-detection, per-turn health check (binds 127.0.0.1 only)
+- `web.js` — Web UI server: local HTTP + SSE streaming, model auto-detection, per-turn health check, native file-picker endpoint (zenity/kdialog) (binds 127.0.0.1 only)
 - `web/index.html` — Browser chat client
 - `agent.js` — Core agent loop: prompt → LM Studio → tools → repeat (with streaming), context truncation, loop guards, exec safety
 - `tools/web-search.js` — DuckDuckGo HTML parsing + local content fetch (parallel, 25s cap each)
