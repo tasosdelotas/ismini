@@ -84,6 +84,15 @@ The whole app is one folder — it needs only Node.js + LM Studio, so you can al
 | **Pause** button | Interrupt the agent mid-loop — type a suggestion to redirect it |
 | `Ctrl+C` on the server | Stop ismini |
 
+**If the 📁 button doesn't work on your machine** (no native dialog found), install one of these — or just type the path:
+
+```bash
+sudo apt install zenity      # Debian/Ubuntu/Mint
+sudo dnf install zenity      # Fedora
+sudo pacman -S zenity        # Arch/Manjaro
+# (or kdialog instead, on any distro)
+```
+
 That's it — the web UI is intentionally minimal.
 
 ## Tools
