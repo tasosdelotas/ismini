@@ -346,6 +346,19 @@
     line-height: 1;
   }
   #fileBtn:hover:not(:disabled), #folderBtn:hover:not(:disabled) { background: rgba(126,201,143,.2); }
+  #sudoBtn {
+    background: rgba(126,201,143,.10);
+    border-color: rgba(126,201,143,.4);
+    color: #7ec98f;
+    font-weight: 600;
+  }
+  #sudoBtn:hover:not(:disabled) { background: rgba(126,201,143,.2); }
+  #sudoBtn.off {
+    background: rgba(255,140,140,.10);
+    border-color: rgba(255,140,140,.4);
+    color: #ff9c9c;
+  }
+  #sudoBtn.off:hover:not(:disabled) { background: rgba(255,140,140,.2); }
   #sendBtn {
     background: rgba(88,166,255,.12);
     border-color: rgba(88,166,255,.4);
@@ -434,6 +447,7 @@
     <span class="logo">ISMINI</span>
     <span id="modelBadge" title="model endpoint">…</span>
     <span id="status"></span>
+    <button id="sudoBtn" title="Auto-sudo for exec commands (config.json → tools.sudo). Click to toggle — applies immediately and is saved.">sudo: …</button>
     <button id="newBtn" title="Start a new conversation">New chat</button>
   </header>
 
@@ -764,6 +778,49 @@
   });
   sendBtn.addEventListener("click", send);
   newBtn.addEventListener("click", newChat);
+
+  // ── sudo toggle (header) ──────────────────────────────────────
+  // Flips tools.sudo in config.json AND applies live to the running
+  // agent (no restart). Green = ON (exec gets the sudo -n prefix),
+  // red = OFF (exec runs as the normal user).
+  const sudoBtn = $("sudoBtn");
+  function setSudo(on) {
+    sudoBtn.textContent = on ? "sudo: ON" : "sudo: OFF";
+    sudoBtn.classList.toggle("off", !on);
+  }
+  async function refreshSudo() {
+    try {
+      const r = await fetch("/api/sudo");
+      const j = await r.json();
+      setSudo(!!j.enabled);
+    } catch { /* server gone — EventSource will retry */ }
+  }
+  sudoBtn.addEventListener("click", async () => {
+    if (sudoBtn.disabled) return;
+    sudoBtn.disabled = true;
+    const next = !sudoBtn.classList.contains("off") ? false : true; // current ON → turn OFF
+    try {
+      const r = await fetch("/api/sudo", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && typeof j.enabled === "boolean") {
+        setSudo(j.enabled);
+        toast(j.enabled
+          ? "sudo enabled — exec commands get the sudo -n prefix"
+          : "sudo disabled — exec runs as your normal user");
+      } else {
+        toast(j.error || "toggle failed (" + r.status + ")");
+      }
+    } catch (e) {
+      toast("toggle failed: " + e.message);
+    } finally {
+      sudoBtn.disabled = false;
+    }
+  });
+  refreshSudo();
 
   // ── file/folder picker (native desktop dialog) ───────────────
   // Click → server opens zenity/kdialog on the desktop → the chosen path

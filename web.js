@@ -5,7 +5,7 @@
 //   node web.js [--port 8787]     or     ismini
 
 import http from 'node:http';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -337,6 +337,25 @@ const server = http.createServer(async (req, res) => {
       } finally {
         pickInProgress = false;
       }
+    }
+    else if (req.method === 'GET' && url.pathname === '/api/sudo') {
+      sendJson(res, 200, { enabled: agent.allowSudo });
+    }
+    else if (req.method === 'POST' && url.pathname === '/api/sudo') {
+      const body = await readBody(req);
+      let enabled;
+      try { enabled = JSON.parse(body).enabled; }
+      catch { return sendJson(res, 400, { error: 'expected {"enabled": true|false}' }); }
+      if (typeof enabled !== 'boolean') return sendJson(res, 400, { error: 'expected {"enabled": true|false}' });
+      agent.allowSudo = enabled; // applies live — next exec call picks it up
+      config.tools = config.tools || {};
+      config.tools.sudo = enabled;
+      try {
+        writeFileSync(join(__dirname, 'config.json'), JSON.stringify(config, null, 2) + '\n', 'utf8');
+      } catch (err) {
+        return sendJson(res, 500, { error: 'applied for this run, but saving to config.json failed: ' + err.message });
+      }
+      sendJson(res, 200, { ok: true, enabled });
     }
     else if (req.method === 'GET' && url.pathname === '/state') {
       const model = await detectModel();

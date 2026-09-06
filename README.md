@@ -79,6 +79,7 @@ The whole app is one folder — it needs only Node.js + LM Studio, so you can al
 
 | Control | What it does |
 |---------|--------------|
+| **sudo: ON/OFF** toggle (header) | Auto-sudo for `exec` commands. Green = ON (commands get the `sudo -n` prefix), red = OFF (runs as your normal user). Saved to config.json, applies immediately — no restart |
 | **New chat** button | Clear the conversation (start fresh) |
 | **📄 File** button (left of the input) | Opens your desktop's native file picker — the chosen file's path is inserted into the message box. Nothing is opened or uploaded |
 | **📁 Folder** button (left of the input) | Opens your desktop's native folder picker — the chosen folder's path is inserted into the message box |
@@ -120,7 +121,7 @@ By default (`"tools.sudo": true`), `exec` auto-prefixes commands with `sudo -n`.
   <user> ALL=(ALL) NOPASSWD: ALL
   ```
   After that, sudo commands (e.g. `sudo apt update`) just work.
-- **Or skip root entirely:** set `"tools.sudo": false` in `config.json` and every command runs as the normal user.
+- **Or skip root entirely:** set `"tools.sudo": false` in `config.json` — or click the **sudo: ON/OFF** toggle in the web UI header (same effect: saved to config.json, applies immediately) — and every command runs as the normal user.
 
 Note: even with sudo enabled, ismini still blocks system power actions (`reboot`, `shutdown`, `poweroff`) and other destructive patterns.
 
