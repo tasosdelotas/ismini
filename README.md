@@ -35,26 +35,14 @@ A stripped-down local agent runtime. No gateway, no plugins, no cloud, no depend
 
 ```bash
 # 1. Make sure LM Studio is running with a model loaded
-lms server start --port 1234   # or use the desktop app
 
-# 2. Get the app — download the source zip from [Releases](../../releases)
-#    (or clone the repo) and extract it. Then install:
+# 2. Get the app — download the source zip from Releases, extract it, then install:
 ./install.sh      # places the app in ~/ismini + Desktop icon (undo: ./uninstall.sh)
-
-# 3. Edit the config to match your setup
-nano ~/ismini/config.json
 ```
 
-**Run it** — click the ismini desktop icon, or from a terminal:
+**Run it** — click the ismini desktop icon.
 
-```bash
-~/ismini/ismini-web    # starts the server + opens your browser
-~/ismini/ismini        # starts the server only
-# — custom port:
-node ~/ismini/web.js --port 9000
-```
-
-The whole app is one folder — it needs only Node.js + LM Studio, so you can also skip the installer and run it straight from wherever you extracted it. `./install.sh` just gives it a canonical home (`~/ismini`) plus the Desktop icon and app-menu entry.
+The whole app is one folder — it needs only Node.js (https://nodejs.org/) + LM Studio, so you can also skip `./install.sh` and run it straight from wherever you extracted it by running `ismini-web` as a standalone app. `./install.sh` just gives it a canonical home (`~/ismini`) plus the Desktop icon and app-menu entry.
 
 ## Config (`config.json`)
 
