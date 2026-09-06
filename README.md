@@ -79,7 +79,7 @@ The whole app is one folder — it needs only Node.js + LM Studio, so you can al
 
 | Control | What it does |
 |---------|--------------|
-| **sudo: ON/OFF** toggle (header) | Auto-sudo for `exec` commands. Green = ON (commands get the `sudo -n` prefix), red = OFF (runs as your normal user). Saved to config.json, applies immediately — no restart |
+| **sudo: ON/OFF** toggle (header) | Auto-sudo for `exec` commands. Green = ON (commands get the `sudo -n` prefix), red = OFF (runs as your normal user — a `sudo` the model writes itself is stripped or blocked, so OFF really means OFF). Saved to config.json, applies immediately — no restart |
 | **New chat** button | Clear the conversation (start fresh) |
 | **📄 File** button (left of the input) | Opens your desktop's native file picker — the chosen file's path is inserted into the message box. Nothing is opened or uploaded |
 | **📁 Folder** button (left of the input) | Opens your desktop's native folder picker — the chosen folder's path is inserted into the message box |

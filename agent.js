@@ -339,6 +339,24 @@ async function toolExec(args, timeoutSecs, allowSudo) {
     }
   }
 
+  // Enforce the sudo toggle: when OFF, the model's own `sudo` must not
+  // run as root either. The toggle only controls the auto-prefix below,
+  // but the model naturally writes `sudo` itself (e.g. "sudo apt install
+  // x") — that would silently bypass the OFF state.
+  //  - leading "sudo" (with optional flags like -n/-H): strip it and run
+  //    as the normal user — the toggle's promise ("exec runs as your
+  //    normal user")
+  //  - "sudo" anywhere else (e.g. "echo x | sudo tee /etc/motd"): block
+  //    with a clear message so the model can adapt
+  if (!allowSudo) {
+    if (/^sudo(\s|$)/.test(cmd)) {
+      cmd = cmd.replace(/^sudo(?=\s|$)(\s+(-[a-zA-Z]+\s+)*)?/, '').trim();
+      if (!cmd) return 'Blocked: sudo is disabled (toggle OFF) and there is no command left to run.';
+    } else if (/(^|[^a-zA-Z0-9_])sudo([^a-zA-Z0-9_]|$)/.test(cmd)) {
+      return 'Blocked: sudo is disabled (toggle OFF). Run the command without sudo, or ask the user to enable the sudo toggle.';
+    }
+  }
+
   // Support sudo prefix in config or per-command
   const useSudo = allowSudo && (args.sudo === true || !('sudo' in args));
   if (useSudo && !cmd.startsWith('sudo ')) {
