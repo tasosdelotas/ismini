@@ -2,7 +2,7 @@
 // Zero dependencies beyond Node.js built-ins.
 
 import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
-import { join, isAbsolute } from 'node:path';
+import { join, isAbsolute, extname } from 'node:path';
 import { homedir } from 'node:os';
 import { fetch as webFetch } from './tools/web-fetch.js';
 import { fileURLToPath } from 'node:url';
@@ -102,6 +102,32 @@ function cleanupModelOutput(text) {
   }
 
   return cleaned.trim();
+}
+
+// Decide whether a tool result is a genuine failure.
+// Anchored to error prefixes only: web_search / web_fetch return page
+// content and `read` returns file content, so a *successful* result may
+// contain the words "failed" or "Error" in its body. A substring match
+// (the old behavior) misread those as failures and — for web_search —
+// permanently disabled the tool for the rest of the session.
+function isToolError(name, result) {
+  if (typeof result !== 'string' || !result) return false;
+  switch (name) {
+    case 'web_search':
+      return /^Search failed\b|^Web search error\b|^Error\b/.test(result);
+    case 'web_fetch':
+      return /^Fetch error\b|^HTTP \d{3}\b|^Error\b/.test(result);
+    case 'read':
+      return /^Error reading file\b|^Error: "path" required/.test(result);
+    case 'exec':
+      return /^Error executing\b|^Error: "command" required\b|^Blocked\b/.test(result)
+        || /\[Process exited with code [1-9]\d*\]/.test(result);
+    case 'write':
+    case 'edit':
+    case 'delete':
+    default:
+      return /^Error\b/.test(result);
+  }
 }
 
 // ── Streaming line formatter — readable paragraph/section spacing ───
@@ -231,6 +257,10 @@ async function toolRead(args, workspace, contextDir) {
   try {
     // Relative paths resolve from the running user's home directory for system-wide access
     const resolved = isAbsolute(p) ? p : join(homedir(), p);
+    const ext = extname(resolved).toLowerCase();
+    if (['.jpg','.jpeg','.png','.gif','.webp','.bmp','.svg','.tiff','.ico'].includes(ext)) {
+      return 'I cannot view image files. I do not have vision capabilities. Please describe the image to me instead.';
+    }
     const content = readFileSync(resolved, 'utf8');
     const lines = content.split('\n');
     if (lines.length > 10000) return `File has ${lines.length} lines. Showing first 10000:\n\n${lines.slice(0, 10000).join('\n')}\n... [truncated]`;
@@ -482,6 +512,10 @@ export class Agent {
     // Loop guards
     this._consecutiveToolTurns = 0; // count turns with tool calls but no text answer
     this._consecutiveEmptyTurns = 0; // count turns with empty model output (stuck detection)
+
+    // Tool failure tracking (consecutive GENUINE failures, across turns)
+    this._toolFailStreak = {};        // tool name -> consecutive failure count
+    this._toolFailNoted = new Set();  // tools already flagged with a "stop retrying" note
   }
 
   // Push a message onto the single in-memory history (normalizes string vs object)
@@ -494,6 +528,8 @@ export class Agent {
     this.messages = [];
     this._consecutiveToolTurns = 0;
     this._consecutiveEmptyTurns = 0;
+    this._toolFailStreak = {};
+    this._toolFailNoted = new Set();
     this.enabledTools = [...this._enabledToolsInit];
   }
 
@@ -653,20 +689,20 @@ export class Agent {
         const execReminder = '[SYSTEM-PERSISTENT] You just ran an exec command. The result is in your context — answer the user using it NOW. Do NOT call more tools unless explicitly asked to.';
         this._push('system', { role: 'system', content: execReminder });
       }
-      // Process tool calls — detect repeated failures
-      const failedTools = [];
+      // Process tool calls — track genuine failures (across turns)
       for (const tc of toolCalls) {
         const result = await this._executeTool(tc.name, tc.args);
 
         this.ui.showToolOutput(tc.name, result);
 
-        // Track consecutive failures per tool name
-        const existingIdx = failedTools.findIndex(f => f.name === tc.name);
-        if (result.includes('failed') || result.startsWith('Error')) {
-          if (existingIdx >= 0) { failedTools[existingIdx].count++; }
-          else { failedTools.push({ name: tc.name, count: 1 }); }
-        } else if (existingIdx >= 0) {
-          failedTools.splice(existingIdx, 1);
+        // Track consecutive genuine failures per tool (across turns); reset
+        // on success. Only anchored error prefixes count — a successful
+        // result whose *content* contains "failed"/"Error" is not a failure.
+        if (isToolError(tc.name, result)) {
+          this._toolFailStreak[tc.name] = (this._toolFailStreak[tc.name] || 0) + 1;
+        } else {
+          this._toolFailStreak[tc.name] = 0;
+          this._toolFailNoted.delete(tc.name); // recovered — allow re-use
         }
 
         // Store tool result
@@ -698,17 +734,16 @@ export class Agent {
         this._push('system', { role: 'system', content: execReminder });
       }
 
-      // If same tool failed 3+ times in a row, inject a note to stop the loop
-      for (const ft of failedTools) {
-        if (ft.count >= 1 && ft.name === 'web_search') {
-          // role 'user', not 'tool': orphaned tool messages (no matching
-          // assistant tool_call) are rejected by strict chat templates
+      // Stop a tool only after 3+ consecutive GENUINE failures (across turns).
+      // One-time note per failure streak (role 'user', so it is never an
+      // orphaned tool message); cleared if the tool later succeeds. A single
+      // transient hiccup (e.g. a DuckDuckGo rate limit) no longer disables
+      // web_search for the rest of the session.
+      for (const [name, streak] of Object.entries(this._toolFailStreak)) {
+        if (streak >= 3 && !this._toolFailNoted.has(name)) {
+          this._toolFailNoted.add(name);
           this._push('user',
-            `[SYSTEM NOTE] web_search has failed. It is unavailable. Do not attempt it again.`);
-        } else if (ft.count >= 2 && ft.name !== 'web_search') {
-          // Only block other tools after 2 failures + 1 retry
-          this._push('user',
-            `[SYSTEM NOTE] The "${ft.name}" tool has failed ${ft.count + 1} consecutive times. Do not retry it — try a different approach or inform the user.`);
+            `[SYSTEM NOTE] The "${name}" tool has failed ${streak} times in a row (often a temporary issue like rate limiting). Stop retrying it for now and tell the user what happened. It may work again later.`);
         }
       }
 

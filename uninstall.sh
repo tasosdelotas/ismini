@@ -21,4 +21,3 @@ rm -f /tmp/ismini-web.log
 rm -rf "$APP"
 
 echo "Uninstalled ismini (app dir: $APP)."
-[ -f "$HOME/ismini-installer.run" ] && echo "Kept installer: $HOME/ismini-installer.run (delete manually if not wanted)"

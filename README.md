@@ -20,6 +20,7 @@ A stripped-down local agent runtime. No gateway, no plugins, no cloud, no depend
 - Loop guards: repetition stripping, empty-output hard-stop, per-response and per-run timeouts
 - Model-agnostic — works with whatever model is loaded in LM Studio (auto-detected every turn)
 - Web tools fully local — DuckDuckGo HTML search + direct fetch + local HTML→text parsing (no third-party readers)
+- **No vision** — point it at an image file and it declines gracefully, asking you to describe it (instead of choking on binary data)
 
 ## Requirements
 
@@ -35,22 +36,24 @@ A stripped-down local agent runtime. No gateway, no plugins, no cloud, no depend
 # 1. Make sure LM Studio is running with a model loaded
 lms server start --port 1234   # or use the desktop app
 
-# 2. Edit config.json to match your setup
-nano config.json
+# 2. Get the app — download the source zip from [Releases](../../releases)
+#    (or clone the repo) and extract it. Then install:
+./install.sh      # places the app in ~/ismini + Desktop icon (undo: ./uninstall.sh)
 
-# 3. Run it — starts the web UI at http://127.0.0.1:8787
-./ismini        # starts the server
-./ismini-web    # starts the server + opens your browser
-# — custom port:
-node web.js --port 9000
-
-# Optional: desktop launcher icon (app menu + Desktop)
-./install.sh              # remove it again with: ./uninstall.sh
+# 3. Edit the config to match your setup
+nano ~/ismini/config.json
 ```
 
-The whole app is this folder — copy it anywhere (it needs only Node.js + LM Studio), and `./install.sh` points your desktop launcher at wherever it lives.
+**Run it** — click the ismini desktop icon, or from a terminal:
 
-**Single-file install:** grab `ismini-installer.run` from [Releases](../../releases) — run it once and it places `~/ismini` plus the Desktop icon. Nothing else.
+```bash
+~/ismini/ismini-web    # starts the server + opens your browser
+~/ismini/ismini        # starts the server only
+# — custom port:
+node ~/ismini/web.js --port 9000
+```
+
+The whole app is one folder — it needs only Node.js + LM Studio, so you can also skip the installer and run it straight from wherever you extracted it. `./install.sh` just gives it a canonical home (`~/ismini`) plus the Desktop icon and app-menu entry.
 
 ## Config (`config.json`)
 
@@ -119,6 +122,7 @@ Note: even with sudo enabled, ismini still blocks system power actions (`reboot`
 - `config.json` — Configuration (model endpoint, agent, tools)
 - `ismini` — Bash launcher so you can run it from any directory
 - `ismini-web` — Launcher that also opens your browser
+- `install.sh` / `uninstall.sh` — install to `~/ismini` + Desktop icon, and remove it all again
 
 ## Why does this exist?
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ismini installer: puts the app in ~/ismini and installs the launcher.
-# Works from the makeself package (temp dir) or from any existing folder.
+# Run it from anywhere — the extracted zip folder, a git clone, wherever.
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 DEST="$HOME/ismini"
@@ -30,12 +30,13 @@ if [ "$node_major" -lt 18 ]; then
 fi
 echo "Node.js $node_version found - OK."
 
-# canonical location: move the app to ~/ismini (survives makeself's temp-dir cleanup)
+# canonical location: copy the app to ~/ismini so there is one live copy.
+# The source folder is left untouched (it may be your dev copy or a zip you
+# just extracted) — re-run install.sh from it after updating the app.
 if [ "$DIR" != "$DEST" ]; then
   mkdir -p "$DEST"
   cp -a "$DIR"/. "$DEST"/
-  rm -f "$DEST/makeself" "$DEST/makeself.sh"
-  rm -rf "$DIR"
+  echo "App installed to: $DEST (source folder left untouched: $DIR)"
   exec bash "$DEST/install.sh"
 fi
 
