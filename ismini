@@ -1,5 +1,5 @@
 #!/bin/bash
-# ismini-web — Web UI launcher: starts the server if not running, then opens the browser
+# ismini — Web UI launcher: starts the server if not running, then opens the browser
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 URL="http://127.0.0.1:8787/"
 
@@ -9,7 +9,7 @@ if curl -s -m 1 "$URL" -o /dev/null; then
 fi
 
 # Start detached, wait for the port (up to ~10s)
-nohup node "$DIR/web.js" > /tmp/ismini-web.log 2>&1 &
+nohup node "$DIR/web.js" > /tmp/ismini.log 2>&1 &
 for _ in $(seq 1 20); do
   sleep 0.5
   curl -s -m 1 "$URL" -o /dev/null && break

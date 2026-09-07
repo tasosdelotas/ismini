@@ -15,7 +15,7 @@ rm -f "$HOME/.local/share/applications/ismini.desktop"
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 
 # 3) stray launcher log
-rm -f /tmp/ismini-web.log
+rm -f /tmp/ismini.log
 
 # 4) the app itself (config, persona, code)
 rm -rf "$APP"

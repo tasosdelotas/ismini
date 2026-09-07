@@ -49,7 +49,7 @@ Type=Application
 Version=1.0
 Name=ismini
 Comment=Minimal local agent runtime (Web UI)
-Exec=$DIR/ismini-web
+Exec=$DIR/ismini
 Icon=$DIR/ismini.png
 Terminal=false
 Categories=Development;Network;Utility;
@@ -61,8 +61,8 @@ fi
 
 if [ -d "$HOME/.local/share/applications" ]; then
   cp "$DIR/ismini.desktop" "$HOME/.local/share/applications/ismini.desktop"
-  sed -i "s|^Exec=.*|Exec=$DIR/ismini-web|; s|^Icon=.*|Icon=$DIR/ismini.png|" "$HOME/.local/share/applications/ismini.desktop"
+  sed -i "s|^Exec=.*|Exec=$DIR/ismini|; s|^Icon=.*|Icon=$DIR/ismini.png|" "$HOME/.local/share/applications/ismini.desktop"
   update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
   echo "App menu entry installed."
 fi
-echo "Done. Start ismini with: $DIR/ismini-web"
+echo "Done. Start ismini with: $DIR/ismini"
