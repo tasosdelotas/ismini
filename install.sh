@@ -40,7 +40,7 @@ if [ "$DIR" != "$DEST" ]; then
   exec bash "$DEST/install.sh"
 fi
 
-[ -f "$DIR/ismini" ] || { echo "ERROR: app not found in $DIR"; exit 1; }
+[ -f "$DIR/web.js" ] || { echo "ERROR: app not found in $DIR"; exit 1; }
 
 if [ -d "$HOME/Desktop" ]; then
   cat > "$HOME/Desktop/ismini.desktop" <<EOF

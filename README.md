@@ -121,8 +121,7 @@ Note: even with sudo enabled, ismini still blocks system power actions (`reboot`
 - `tools/web-search.js` — DuckDuckGo HTML parsing + local content fetch (parallel, 25s cap each)
 - `tools/web-fetch.js` — Direct fetch + local HTML→text (no third-party readers)
 - `config.json` — Configuration (model endpoint, agent, tools)
-- `ismini` — Bash launcher so you can run it from any directory
-- `ismini-web` — Launcher that also opens your browser
+- `ismini-web` — Launcher: starts the server (if not running) and opens your browser
 - `install.sh` / `uninstall.sh` — install to `~/ismini` + Desktop icon, and remove it all again
 
 ## Why does this exist?
