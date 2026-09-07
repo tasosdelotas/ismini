@@ -1,0 +1,4 @@
+# Keep dev-only files out of the source zips users download
+# (GitHub source zips honor export-ignore)
+.gitignore export-ignore
+.gitattributes export-ignore
