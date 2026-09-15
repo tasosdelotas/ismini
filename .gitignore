@@ -1,0 +1,9 @@
+# Flatpak build artifacts
+_flatpak_build/
+*.flatpak
+*.flatpakref
+
+# OS
+*.swp
+*~
+.DS_Store

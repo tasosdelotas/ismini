@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=ismini
+Comment=Minimal local AI agent — runs on your PC, nothing leaves your machine
+Exec=flatpak run org.ismini.app
+Icon=org.ismini.app
+Terminal=false
+Categories=Development;Utility;
+Keywords=AI;LLM;local;assistant;
+StartupWMClass=ismini
