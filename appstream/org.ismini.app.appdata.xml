@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="console">
+  <id>org.ismini.app</id>
+  <name>Ismini</name>
+  <summary>Minimal, local, autonomous AI agent</summary>
+  <description>
+    <p>Ismini is a minimal, local, autonomous AI agent that connects to LM Studio for local LLM inference. No cloud dependencies, no bloat.</p>
+  </description>
+  <url type="homepage">https://github.com/tasosdelotas/ismini</url>
+  <provides>
+    <binary>ismini</binary>
+  </provides>
+</component>
