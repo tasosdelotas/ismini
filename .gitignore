@@ -1,6 +1,3 @@
-# Flatpak build artifacts
-_flatpak_build/
-# Note: ismini.flatpak is distributed via GitHub Releases, not git
 
 # OS
 *.swp
