@@ -602,8 +602,10 @@ export class Agent {
     this._buildFullSystemPrompt = () => basePrompt;
 
     // Tool config
-    this.allowSudo = opts.sudo !== false;
-    // Respect ISMINI_SUDO env var (set to 'false' in Flatpak since sudo is not available)
+    // Auto-detect Flatpak: inside Flatpak, sudo is not available
+    const inFlatpak = process.env.FLATPAK_ID !== undefined || process.env.FLATPAK_APP_ID !== undefined;
+    this.allowSudo = opts.sudo !== false && !inFlatpak;
+    // Also respect ISMINI_SUDO env var override
     if (process.env.ISMINI_SUDO === 'false') {
       this.allowSudo = false;
     }
