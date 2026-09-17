@@ -1,5 +1,9 @@
 <div align="center">
 
+<img src="screenshots/1.png" alt="ismini" width="700" />
+
+<br />
+
 <img src="favicon-256.png" alt="ismini" width="120" />
 
 <br />
@@ -35,12 +39,6 @@ ismini is a lightweight, minimal AI agent that runs locally on your machine. No 
 ## 📸 Screenshots
 
 <div align="center">
-
-### Main Interface
-
-<img src="screenshots/1.png" alt="Screenshot 1" width="700" />
-
-<br />
 
 ### Themes
 
