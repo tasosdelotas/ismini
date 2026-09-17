@@ -2,6 +2,8 @@
 
 <img src="favicon-256.png" alt="ismini" width="120" />
 
+<br />
+
 <img src="screenshots/2.jpeg" alt="ismini" width="300" />
 
 ### A Minimal AI Agent
