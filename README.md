@@ -42,12 +42,6 @@ ismini is a lightweight, minimal AI agent that runs locally on your machine. No 
 
 ### Themes
 
-**Marble**
-
-<img src="screenshots/marble.png" alt="Marble theme" width="700" />
-
-<br />
-
 **Papyrus**
 
 <img src="screenshots/papyrus.png" alt="Papyrus theme" width="700" />
@@ -57,6 +51,12 @@ ismini is a lightweight, minimal AI agent that runs locally on your machine. No 
 **Stars**
 
 <img src="screenshots/stars.png" alt="Stars theme" width="700" />
+
+<br />
+
+**Marble**
+
+<img src="screenshots/marble.png" alt="Marble theme" width="700" />
 
 </div>
 
