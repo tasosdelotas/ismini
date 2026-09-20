@@ -1,10 +1,4 @@
 // web-fetch.js — Fetch and parse a URL. FULLY LOCAL: direct fetch + HTML→text.
-// No third-party readers (no Jina). If a page is a JS shell or bot-walled,
-// we report that honestly instead of round-tripping to a remote service.
-// NOTE: this module exports a function named `fetch`, which shadows the
-// global fetch inside this file. All network calls MUST use `net`
-// (captured from globalThis) or the module will call itself →
-// infinite recursion ("Maximum call stack size exceeded").
 
 const net = globalThis.fetch;
 
@@ -12,29 +6,32 @@ const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Geck
 const LIMIT = 20000;
 
 export function htmlToText(html) {
-  if (!html) return '';
-  let text = html;
+    if (!html) return '';
+    let text = html;
 
-  // Remove scripts and styles
-  text = text.replace(/<\/?(script|style|noscript|iframe|svg|math)[^>]*>\s*?([\s\S]*?)<\/\1>/gi, '');
+    // 1. Remove non-content blocks accurately (script, style, noscript, etc.)
+    text = text.replace(/<(script|style|noscript|iframe|svg|math)[^>]*>[\s\S]*?<\/\1>/gi, '');
 
-  // Block elements → double newline (paragraph break)
-  const BLOCK_TAGS = 'p|div|br|hr|h[1-6]|li|tr|blockquote|pre|table|section|article|header|footer|nav|main|aside|figure|figcaption|details|summary|dl|dt|dd|address|form|fieldset|legend|button|input|textarea|select|option|video|audio|source|canvas|svg|math|iframe|embed|object|param|track|map|area|picture|slot|template|img';
-  text = text.replace(new RegExp(`</?(${BLOCK_TAGS})[^>]*>`, 'gi'), (m, tag) => {
-    const lower = tag.toLowerCase();
-    if (lower === 'br' || lower === 'hr') return '\n';
-    return '\n\n';
-  });
+    // 2. Remove HTML comments
+    text = text.replace(/<!--[\s\S]*?-->/g, '');
 
-  // Inline elements → single newline (to separate them visually)
-  const INLINE_BREAK_TAGS = 'span|label|a|strong|em|b|i|u|s|mark|code|kbd|samp|var|sub|sup|ins|del|abbr|dfn|q|small|big|cite|font|tt|bdo|bdi|wbr';
-  text = text.replace(new RegExp(`</?(${INLINE_BREAK_TAGS})[^>]*>`, 'gi'), '\n');
+    // 3. Convert Block elements → double newline (paragraph break)
+    const BLOCK_TAGS = 'p|div|hr|h[1-6]|li|tr|blockquote|pre|table|section|article|header|footer|nav|main|aside|figure|figcaption|details|summary|dl|dt|dd|address|form|fieldset|legend|button|input|textarea|select|option|video|audio|source|canvas|embed|object|param|track|map|area|picture|slot|template';
+    text = text.replace(new RegExp(`</?(${BLOCK_TAGS})[^>]*>`, 'gi'), '\n\n');
 
-  // Remove all remaining tags (scripts, styles, comments, etc.)
-  text = text.replace(/<[^>]+>/g, '');
+    // Convert explicit line breaks (<br>, <br/>) → single newline
+    text = text.replace(/<br\s*\/?>/gi, '\n');
 
-  // Decode common HTML entities
-  text = text.replace(/&amp;/g, '&')
+    // 4. Convert Inline elements → single space (preserves sentence continuity)
+    const INLINE_TAGS = 'span|label|a|strong|em|b|i|u|s|mark|code|kbd|samp|var|sub|sup|ins|del|abbr|dfn|q|small|big|cite|font|tt|bdo|bdi|wbr|img';
+    text = text.replace(new RegExp(`</?(${INLINE_TAGS})[^>]*>`, 'gi'), ' ');
+
+    // 5. Remove any remaining unhandled HTML tags
+    text = text.replace(/<[^>]+>/g, ' ');
+
+    // 6. Decode common HTML entities
+    text = text
+    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
@@ -42,43 +39,54 @@ export function htmlToText(html) {
     .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, ' ');
 
-  // Collapse whitespace (preserve intentional newlines)
-  text = text.replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n /g, '\n')
-    .replace(/ \n/g, '\n')
+    // 7. Normalize line breaks and spaces cleanly
+    text = text
+    .replace(/[ \t]+/g, ' ')               // Collapse horizontal spaces
+    .replace(/ ?\n ?/g, '\n')              // Trim spaces surrounding newlines
+    .replace(/\n{3,}/g, '\n\n')            // Max 2 consecutive newlines
     .trim();
 
-  return text;
+    return text;
 }
 
 function truncate(s) {
-  return s.length > LIMIT ? s.substring(0, LIMIT) + '\n... [truncated]' : s;
+    return s.length > LIMIT ? s.substring(0, LIMIT) + '\n... [truncated]' : s;
 }
 
-// Heuristic: is this a JS app shell / anti-bot wall rather than real content?
+// Heuristic: Check if page is an unrendered JS shell or anti-bot challenge
 function looksLikeShell(html, plain) {
-  if (plain.length < 300) return true;
-  if (html.length < 30000 && /__next|__nuxt|__vue|id="app"|data-reactroot|ng-app/i.test(html)) return true;
-  if (/Enable JavaScript and cookies|cf-chl|__cf_chl_|Just a moment|challenge-platform|captcha|Access Denied|Attention Required/i.test(plain)) return true;
-  return false;
+    // If we extracted a good amount of text, it's real content (even if Next.js / Nuxt SSR)
+    if (plain.length >= 300) {
+        // Only check for obvious anti-bot walls if text length is moderate
+        if (/Enable JavaScript and cookies|cf-chl|__cf_chl_|Just a moment|challenge-platform|captcha|Access Denied|Attention Required/i.test(plain)) {
+            return true;
+        }
+        return false;
+    }
+
+    // If extracted text is under 300 chars AND contains JS framework entry points, it's a client-side shell
+    if (/__next|__nuxt|__vue|id="app"|data-reactroot|ng-app/i.test(html)) {
+        return true;
+    }
+
+    return false;
 }
 
 export function fetch(url) {
-  return net(url, {
-    signal: AbortSignal.timeout(30000),
-    redirect: 'follow',
-    headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml' },
-  }).then(async (resp) => {
-    const html = await resp.text();
-    if (!resp.ok) {
-      return `HTTP ${resp.status}: page not available${resp.status === 403 ? ' (likely blocked by anti-bot — try a different source)' : ''}.`;
-    }
-    const plain = htmlToText(html);
-    if (looksLikeShell(html, plain)) {
-      const hint = '[No readable content — page appears JS-rendered or bot-walled. Try a different source.]';
-      return hint + (plain ? '\n\n(raw text):\n' + truncate(plain) : '');
-    }
-    return truncate(plain) || 'Page returned no readable text.';
-  }).catch((err) => `Fetch error: ${err.message}`);
+    return net(url, {
+        signal: AbortSignal.timeout(30000),
+               redirect: 'follow',
+               headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml' },
+    }).then(async (resp) => {
+        const html = await resp.text();
+        if (!resp.ok) {
+            return `HTTP ${resp.status}: page not available${resp.status === 403 ? ' (likely blocked by anti-bot — try a different source)' : ''}.`;
+        }
+        const plain = htmlToText(html);
+        if (looksLikeShell(html, plain)) {
+            const hint = '[No readable content — page appears JS-rendered or bot-walled. Try a different source.]';
+            return hint + (plain ? '\n\n(raw text):\n' + truncate(plain) : '');
+        }
+        return truncate(plain) || 'Page returned no readable text.';
+    }).catch((err) => `Fetch error: ${err.message}`);
 }

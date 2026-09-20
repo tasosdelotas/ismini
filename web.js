@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Agent } from './agent.js';
+import { SessionStore } from './sessions.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -77,6 +78,8 @@ function scheduleShutdown(reason) {
 }
 
 const ui = new WebUI(broadcast);
+const sessions = new SessionStore(__dirname);
+
 const agent = new Agent({
   baseUrl: config.model.baseUrl,
   apiKey: config.model.apiKey,
@@ -148,6 +151,17 @@ try {
   }
 } catch { /* fall back to config values */ }
 
+// ── Restore active session on startup ─────────────────────────────────────
+const activeSession = sessions.getActive();
+if (activeSession && activeSession.messages.length > 0) {
+  agent.loadMessages(activeSession.messages);
+  console.log(`session        →  restored (${activeSession.messages.length} messages)`);
+} else {
+  // No saved session — create a fresh one
+  sessions.create();
+  console.log('session        →  new (no previous session found)');
+}
+
 // ── Run orchestration ───────────────────────────────────────────────────────
 // The Agent streams model tokens directly via process.stdout.write (and
 // tools may console.log). While a turn is running we route those writes
@@ -188,6 +202,8 @@ async function runTurn(text) {
   } finally {
     process.stdout.write = orig;
     busy = false;
+    // Auto-save session after each turn
+    sessions.saveActive(agent.messages);
     if (!paused) broadcast({ type: 'done', messages: agent.messages.length });
   }
 }
@@ -291,6 +307,39 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-cache', 'content-length': FAVICON_PNG.length });
       res.end(FAVICON_PNG);
     }
+    else if (req.method === 'GET' && url.pathname === '/fonts/cinzel.ttf') {
+      // Cinzel (ancient-inscription display font) for the ISMINI wordmark
+      let buf;
+      try { buf = readFileSync(join(__dirname, 'web', 'fonts', 'cinzel.ttf')); }
+      catch { return sendJson(res, 404, { error: 'no font' }); }
+      res.writeHead(200, { 'content-type': 'font/ttf', 'cache-control': 'no-cache', 'content-length': buf.length });
+      res.end(buf);
+    }
+    else if (req.method === 'GET' && url.pathname === '/marble.jpeg') {
+      // Black marble background for the marble theme (read per-request, like /bg.jpg)
+      let buf;
+      try { buf = readFileSync(join(__dirname, 'web', 'marble.jpeg')); }
+      catch { return sendJson(res, 404, { error: 'no marble' }); }
+      res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'no-cache', 'content-length': buf.length });
+      res.end(buf);
+    }
+    else if (req.method === 'GET' && url.pathname === '/stars.gif') {
+      // Twinkling starfield for the dark theme (read per-request, like /bg.jpg)
+      let buf;
+      try { buf = readFileSync(join(__dirname, 'web', 'stars.gif')); }
+      catch { return sendJson(res, 404, { error: 'no starfield' }); }
+      res.writeHead(200, { 'content-type': 'image/gif', 'cache-control': 'no-cache', 'content-length': buf.length });
+      res.end(buf);
+    }
+    else if (req.method === 'GET' && url.pathname === '/bg.jpg') {
+      // Papyrus background for the light theme. Read per-request (not at startup)
+      // so swapping the image file doesn't require a server restart.
+      let buf;
+      try { buf = readFileSync(join(__dirname, 'web', 'bg.jpg')); }
+      catch { return sendJson(res, 404, { error: 'no background image' }); }
+      res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'no-cache', 'content-length': buf.length });
+      res.end(buf);
+    }
     else if (req.method === 'GET' && url.pathname === '/events') {
       res.writeHead(200, {
         'content-type': 'text/event-stream',
@@ -321,9 +370,12 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, { ok: true });
     }
     else if (req.method === 'POST' && url.pathname === '/new') {
+      // Archive current session and start fresh
+      sessions.saveActive(agent.messages); // ensure current state is saved
+      const newSession = sessions.archiveAndCreate();
       agent.reset();
-      broadcast({ type: 'reset' });
-      sendJson(res, 200, { ok: true });
+      broadcast({ type: 'reset', sessionId: newSession.id });
+      sendJson(res, 200, { ok: true, sessionId: newSession.id });
     }
     else if (req.method === 'GET' && url.pathname === '/api/pick-file') {
       if (pickInProgress) return sendJson(res, 409, { error: 'a file picker is already open' });
@@ -364,7 +416,37 @@ const server = http.createServer(async (req, res) => {
         messages: agent.messages.length,
         contextWindow: agent.contextWindow,
         maxTokens: agent.maxTokens,
+        sessionId: sessions.getActive()?.id || null,
       });
+    }
+    else if (req.method === 'GET' && url.pathname === '/api/sessions') {
+      // List all sessions (newest first, max 3)
+      const list = sessions.list().map(s => ({
+        id: s.id,
+        started: s.started,
+        lastActive: s.lastActive,
+        messageCount: s.messages.length,
+        preview: s.messages.find(m => m.role === 'user')?.content?.substring(0, 80) || '(empty)',
+        active: s.id === sessions.data.activeId,
+      }));
+      sendJson(res, 200, { sessions: list, activeId: sessions.data.activeId });
+    }
+    else if (req.method === 'GET' && url.pathname.startsWith('/api/sessions/')) {
+      // GET /api/sessions/:id — get full session
+      const id = url.pathname.split('/').pop();
+      const s = sessions.get(id);
+      if (!s) return sendJson(res, 404, { error: 'session not found' });
+      sendJson(res, 200, { id: s.id, started: s.started, lastActive: s.lastActive, messages: s.messages });
+    }
+    else if (req.method === 'POST' && url.pathname.startsWith('/api/sessions/switch/')) {
+      // POST /api/sessions/switch/:id — switch active session
+      if (busy) return sendJson(res, 409, { error: 'agent busy — wait for current turn to finish' });
+      const id = url.pathname.split('/').pop();
+      const s = sessions.switchTo(id);
+      if (!s) return sendJson(res, 404, { error: 'session not found' });
+      agent.loadMessages(s.messages);
+      broadcast({ type: 'sessionSwitched', sessionId: s.id, messages: s.messages.length });
+      sendJson(res, 200, { ok: true, sessionId: s.id, messages: s.messages.length });
     }
     else if (req.method === 'GET' && url.pathname === '/transcript') {
       // For resync after a connection drop: the in-memory session so far.
