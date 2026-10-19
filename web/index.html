@@ -1,0 +1,2255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ismini</title>
+<link rel="icon" type="image/png" sizes="256x256" href="/favicon-256.png?v=2">
+<style>
+  :root {
+    --bg: #0f1318;
+    --panel: #161c23;
+    --panel2: #1b232c;
+    --border: #2a333d;
+    --text: #d8dee6;
+    --dim: #8b949e;
+    --user: #3fb950;
+    --model: #58a6ff;
+    --tool: #bc8cff;
+    --warn: #e3b341;
+    --err: #f85149;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  /* ── Light theme — papyrus: an ancient scroll, warm and fibrous ─────────── */
+  :root[data-theme="light"] {
+    --bg: #ece0c4;
+    --panel: #f6efdd;
+    --panel2: #e2d6b6;
+    --border: #cbbc98;
+    --text: #3a3222;
+    --dim: #857a5e;
+    --user: #1a7f37;
+    --model: #0969da;
+    --tool: #8250df;
+    --warn: #9a6700;
+    --err: #cf222e;
+  }
+  :root[data-theme="light"] body {
+    /* fallback (solid papyrus, no texture):
+       background: radial-gradient(ellipse at top, #f8f2e2 0%, var(--bg) 70%); */
+    background-color: var(--bg);
+    /* Papyrus: meander edges over the scroll texture (same layering as the
+       base dark theme — the two theme overrides above fully replaced the
+       base background stack, which is why the borders vanished here) */
+    background-image: url('/meander.png'), url('/meander.png'), url('/bg.jpg?v=2'); /* v=2: busts browser cache of the old 74px image */
+    background-size: 28px auto, 28px auto, cover;
+    background-position: left top, right top, center;
+    background-attachment: fixed, fixed, fixed;
+    background-repeat: repeat-y, repeat-y, no-repeat;
+  }
+  :root[data-theme="light"] .bubble code { color: #3a3222; }
+  :root[data-theme="light"] .bubble pre.code,
+  :root[data-theme="light"] .toolcard pre { background: #e7dcbc; }
+  :root[data-theme="light"] .toolcard pre { color: #5a523d; }
+  :root[data-theme="light"] #modelBadge {
+    color: #1a7f37; background: rgba(26,127,55,.08); border-color: rgba(26,127,55,.35);
+  }
+  :root[data-theme="light"] #status.active {
+    border-color: rgba(154,103,0,.5); background: rgba(154,103,0,.08); color: #9a6700;
+  }
+  :root[data-theme="light"] #fileBtn,
+  :root[data-theme="light"] #folderBtn,
+  :root[data-theme="light"] #sudoBtn {
+    background: rgba(26,127,55,.08); border-color: rgba(26,127,55,.35); color: #1a7f37;
+  }
+  :root[data-theme="light"] #fileBtn:hover:not(:disabled),
+  :root[data-theme="light"] #folderBtn:hover:not(:disabled),
+  :root[data-theme="light"] #sudoBtn:hover:not(:disabled) { background: rgba(26,127,55,.16); }
+  :root[data-theme="light"] #sudoBtn.off {
+    background: rgba(207,34,46,.08); border-color: rgba(207,34,46,.35); color: #cf222e;
+  }
+  :root[data-theme="light"] #sudoBtn.off:hover:not(:disabled) { background: rgba(207,34,46,.16); }
+  :root[data-theme="light"] #pauseBtn {
+    background: rgba(154,103,0,.1); border-color: rgba(154,103,0,.5); color: #9a6700;
+  }
+  :root[data-theme="light"] #pauseBtn:hover:not(:disabled) { background: rgba(154,103,0,.2); }
+  :root[data-theme="light"] .banner.warn { border-color: rgba(154,103,0,.4); background: rgba(154,103,0,.06); }
+  /* ── Marble theme — black marble, white veins (dark palette inherited from base) ── */
+  :root[data-theme="marble"] body {
+    /* Marble: faded meander (pre-baked 25% alpha PNG) over the black marble —
+       calmer on the eyes than the full-strength gold */
+    background-image: url('/meander-faded.png'), url('/meander-faded.png'), url('/marble.jpeg');
+    background-size: 28px auto, 28px auto, cover;
+    background-position: left top, right top, center;
+    background-attachment: fixed, fixed, fixed;
+    background-repeat: repeat-y, repeat-y, no-repeat;
+  }
+  * { box-sizing: border-box; }
+  html { height: 100%; background-color: var(--bg); }
+  body { height: 100%; overflow: hidden; }
+  /* Cinzel — ancient-inscription display font (local file, OFL license) */
+  @font-face {
+    font-family: 'Cinzel';
+    src: url('/fonts/cinzel.ttf') format('truetype');
+    font-weight: 400 900;
+    font-display: swap;
+  }
+  body {
+    margin: 0;
+    /* dark theme: twinkling starfield + meander edges */
+    background-color: var(--bg);
+    /* Faded meander (pre-baked 25% alpha PNG) so it isn't harsh on the dark
+       starfield; the center texture stays full-strength */
+    background-image: url('/meander-faded.png'), url('/meander-faded.png'), url('/stars.gif');
+    background-position: left top, right top, center;
+    background-repeat: repeat-y, repeat-y, repeat;
+    background-size: 28px auto, 28px auto, auto;
+    background-attachment: fixed, fixed, fixed;
+    color: var(--text);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+
+  /* 4. Text selection */
+  ::selection { background: rgba(88, 166, 255, .25); color: var(--text); }
+
+  /* 3. Custom scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  *::-webkit-scrollbar { width: 6px; height: 6px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
+  /* 10. Focus-visible ring */
+  :focus-visible {
+    outline: 2px solid rgba(88, 166, 255, .6);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  header > * { flex-shrink: 0; }
+  .logo {
+    font: 700 15px/1 'Cinzel', var(--mono);
+    letter-spacing: .14em;
+    color: var(--warn);
+  }
+  .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--err);
+    box-shadow: 0 0 8px currentColor;
+    transition: background .3s;
+  }
+  .dot.on { background: var(--user); }
+  .dot.busy { background: var(--warn); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  #modelBadge {
+    font: 12px/1 var(--mono);
+    color: #7ecf7e;
+    background: rgba(100,200,100,.08);
+    border: 1px solid rgba(100,200,100,.35);
+    border-radius: 20px;
+    padding: 4px 10px;
+    max-width: 46vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #status {
+    margin-left: auto;
+    font: 12px/1.4 var(--mono);
+    color: var(--dim);
+    white-space: nowrap;
+  }
+  #status.active {
+    display: inline-block;
+    padding: 5px 12px;
+    border: 1px solid rgba(255,170,50,.5);
+    border-radius: 8px;
+    background: rgba(255,170,50,.1);
+    color: #ffb347;
+    font-weight: 600;
+    animation: statusPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes statusPulse {
+    0%, 100% { border-color: rgba(255,170,50,.5); }
+    50% { border-color: rgba(255,170,50,.9); background: rgba(255,170,50,.18); }
+  }
+  #newBtn {
+    background: rgba(88,166,255,.12);
+    border-color: rgba(88,166,255,.4);
+    color: var(--model);
+    font-weight: 600;
+  }
+  #newBtn:hover:not(:disabled) { background: rgba(88,166,255,.22); }
+  #updateBtn {
+    background: rgba(88,166,255,.12);
+    border-color: rgba(88,166,255,.4);
+    color: var(--model);
+    font-weight: 600;
+  }
+  #updateBtn:hover:not(:disabled) { background: rgba(88,166,255,.22); }
+  button {
+    font: 13px/1 inherit;
+    color: var(--text);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  button:hover { border-color: var(--dim); }
+  button:disabled { opacity: .45; cursor: default; }
+
+  /* Theme picker — three labeled buttons, active one highlighted in gold */
+  .themes { display: flex; gap: 4px; }
+  .themes button { padding: 7px 10px; font-size: 12px; color: var(--dim); }
+  .themes button:hover { color: var(--text); }
+  .themes button.active {
+    background: var(--warn);
+    border-color: var(--warn);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px 0 8px;
+    scroll-behavior: smooth;
+  }
+  .inner { max-width: 860px; margin: 0 auto; padding: 0 16px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* 1. Message entrance animation */
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .msg { display: flex; animation: msgIn .18s ease-out; }
+  .msg.user { justify-content: flex-end; }
+  .bubble { max-width: 78%; padding: 9px 13px; border-radius: 12px; overflow-wrap: break-word; }
+  .msg.user .bubble {
+    background: rgba(63, 185, 80, .12);
+    border: 1px solid rgba(63, 185, 80, .35);
+    border-bottom-right-radius: 4px;
+  }
+  .msg.model .bubble {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+    max-width: 88%;
+  }
+  .who {
+    font: 11px/1 var(--mono);
+    color: var(--dim);
+    letter-spacing: .08em;
+    margin-bottom: 5px;
+    display: flex; gap: 6px; align-items: center;
+  }
+  .who .avatar {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .who .avatar-user {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: .7;
+  }
+
+  /* 6. Timestamps */
+  .timestamp {
+    font: 10.5px/1 var(--mono);
+    color: var(--dim);
+    opacity: .6;
+    margin-top: 6px;
+    text-align: right;
+  }
+  .msg.user .timestamp { text-align: left; }
+
+  .bubble p { margin: 0 0 8px; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble h4 { margin: 10px 0 6px; font-size: 14px; color: var(--text); }
+  .bubble ul, .bubble ol { margin: 4px 0 8px; padding-left: 20px; }
+  .bubble li { margin: 2px 0; }
+  .bubble li > ul, .bubble li > ol { margin: 2px 0 2px; }
+  .bubble code {
+    font: 12.5px/1.4 var(--mono);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 5px;
+    color: #c9d4e0;
+  }
+  .bubble pre.code {
+    background: #0b0f14;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 6px 0 10px;
+    overflow-x: auto;
+    font: 12.5px/1.5 var(--mono);
+    position: relative;
+  }
+  .bubble pre.code code { border: 0; padding: 0; background: none; }
+  .bubble a { color: var(--model); text-decoration: none; }
+  .bubble a:hover { text-decoration: underline; }
+  .bubble .trow { display: flex; gap: 4px 14px; font: 12.5px/1.5 var(--mono); color: var(--text); padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .bubble .trow:last-child { border-bottom: 0; }
+
+  /* 2. Copy button on code blocks */
+  .copy-btn {
+    position: absolute;
+    top: 6px; right: 6px;
+    font: 11px/1 var(--mono);
+    color: var(--dim);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 8px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s, border-color .15s;
+  }
+  pre.code:hover .copy-btn { opacity: 1; }
+  .copy-btn:hover { border-color: var(--dim); color: var(--text); }
+  .copy-btn.copied { color: var(--user); border-color: rgba(63,185,80,.4); }
+
+  .cursor {
+    display: inline-block;
+    width: 8px; height: 15px;
+    background: var(--model);
+    vertical-align: -2px;
+    margin-left: 2px;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .toolcard {
+    max-width: 88%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--tool);
+    border-radius: 10px;
+    overflow: hidden;
+    animation: msgIn .18s ease-out;
+  }
+  .toolcard summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 8px 12px;
+    font: 12.5px/1.4 var(--mono);
+    color: var(--tool);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    user-select: none;
+  }
+  .toolcard summary::-webkit-details-marker { display: none; }
+  .toolcard summary::before { content: "▸"; color: var(--dim); transition: transform .15s; }
+  .toolcard[open] summary::before { transform: rotate(90deg); }
+  /* 11. Tool card icon */
+  .toolcard .tool-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .toolcard pre {
+    margin: 0;
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    background: #0b0f14;
+    font: 12px/1.5 var(--mono);
+    color: #aab6c2;
+    max-height: 320px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .banner {
+    max-width: 88%;
+    padding: 8px 12px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    border: 1px solid;
+    animation: msgIn .18s ease-out;
+  }
+  .banner.warn { color: var(--warn); border-color: rgba(227,179,65,.4); background: rgba(227,179,65,.08); }
+  .banner.error { color: var(--err); border-color: rgba(248,81,73,.45); background: rgba(248,81,73,.08); }
+
+  /* Confirmation prompt for destructive / privileged tools */
+  .confirmcard {
+    max-width: 88%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(248,81,73,.5);
+    background: rgba(248,81,73,.06);
+    animation: msgIn .18s ease-out;
+  }
+  .confirm-head { font-size: 14px; font-weight: 600; color: var(--err); margin-bottom: 8px; }
+  .confirm-detail {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #0b0f14;
+    color: var(--text);
+    font: 12px/1.5 var(--mono);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow: auto;
+  }
+  .confirm-actions { display: flex; gap: 8px; }
+  .confirm-actions button {
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+  }
+  .confirm-actions button:disabled { opacity: .5; cursor: default; }
+  .confirm-yes { background: rgba(46,160,67,.18); border-color: rgba(46,160,67,.5) !important; color: #3fb950; }
+  .confirm-no { background: rgba(248,81,73,.14); border-color: rgba(248,81,73,.5) !important; color: var(--err); }
+
+  .empty {
+    margin: 12vh auto 0;
+    text-align: center;
+    color: var(--dim);
+  }
+  /* 7. Empty state hero screenshot */
+  .empty .hero {
+    display: block;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto 20px;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  /* 7. Empty state icon */
+  .empty .icon {
+    width: 96px; height: 96px;
+    margin: 0 auto 16px;
+    opacity: 1;
+  }
+  .empty .big {
+    font: 700 26px/1.2 'Cinzel', var(--mono);
+    letter-spacing: .22em;
+    color: var(--warn);
+    margin-bottom: 10px;
+    /* 3D: stepped extrusion + soft drop shadow (carved-in-stone depth) */
+    text-shadow:
+      0 1px 0 rgba(0,0,0,.28),
+      0 2px 0 rgba(0,0,0,.24),
+      0 3px 0 rgba(0,0,0,.20),
+      0 5px 8px rgba(0,0,0,.35);
+  }
+  .empty p { font-size: 13.5px; max-width: 420px; margin: 4px auto; }
+  .empty .no-model {
+    color: var(--warn);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .empty a { color: var(--text); text-decoration: none; border-bottom: 1px dashed var(--dim); }
+  .empty a:hover { border-style: solid; }
+  .empty .cogito {
+    display: block;
+    width: 100%;
+    max-width: 360px;
+    margin: 18px auto 0;
+    border-radius: 14px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.3);
+  }
+  .empty kbd {
+    font: 12px var(--mono);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 1px 6px;
+  }
+
+  footer { padding: 10px 16px 14px; position: relative; }
+  .app-version {
+    max-width: 860px;
+    margin: 4px auto -8px;
+    color: var(--dim);
+    font: 10px/1.2 var(--mono);
+    opacity: .75;
+    text-align: right;
+    pointer-events: none;
+  }
+  .image-attachment {
+    max-width: 860px;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .image-attachment[hidden] { display: none; }
+  .image-attachment img { max-width: 96px; max-height: 72px; object-fit: contain; border-radius: 5px; }
+  .image-attachment-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim); font-size: 12px; }
+  .image-attachment button { padding: 4px 9px; color: var(--err); }
+  .user-image { display: block; max-width: min(100%, 420px); max-height: 360px; object-fit: contain; margin-top: 8px; border-radius: 8px; }
+  .composer {
+    max-width: 860px;
+    margin: 0 auto;
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 8px 8px 14px;
+    transition: border-color .15s;
+  }
+  .composer:focus-within { border-color: var(--model); }
+  #input {
+    flex: 1;
+    resize: none;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--text);
+    font: 14.5px/1.5 inherit;
+    max-height: 160px;
+    padding: 4px 0;
+  }
+  #input::placeholder { color: #57606a; }
+  #fileBtn, #folderBtn, #imageBtn {
+    background: rgba(126,201,143,.10);
+    border-color: rgba(126,201,143,.4);
+    color: #7ec98f;
+    padding: 8px 12px;
+    font-size: 15px;
+    line-height: 1;
+  }
+  #fileBtn:hover:not(:disabled), #folderBtn:hover:not(:disabled), #imageBtn:hover:not(:disabled) { background: rgba(126,201,143,.2); }
+
+  /* ── Mic button (STT) ── */
+  #micBtn {
+    background: rgba(248,81,73,.12);
+    border-color: rgba(248,81,73,.5);
+    color: var(--err);
+    padding: 8px 12px;
+    font-size: 15px;
+    line-height: 1;
+  }
+  #micBtn:hover:not(:disabled) { background: rgba(248,81,73,.22); }
+  #micBtn.listening {
+    background: rgba(63,185,80,.15);
+    border-color: rgba(63,185,80,.6);
+    color: #3fb550;
+    animation: micBlink 1s ease-in-out infinite;
+  }
+  @keyframes micBlink { 50% { opacity: .4; } }
+
+  /* ── TTS toggle (header) ── */
+  #ttsBtn {
+    background: rgba(188,140,255,.10);
+    border-color: rgba(188,140,255,.4);
+    color: var(--tool);
+    font-weight: 600;
+  }
+  #ttsBtn:hover:not(:disabled) { background: rgba(188,140,255,.2); }
+  #ttsBtn.off {
+    background: rgba(139,148,158,.08);
+    border-color: rgba(139,148,158,.3);
+    color: var(--dim);
+  }
+
+  /* ── Live mode button ── */
+  #liveBtn {
+    background: rgba(248,81,73,.10);
+    border-color: rgba(248,81,73,.45);
+    color: var(--err);
+    font-weight: 600;
+  }
+  #liveBtn:hover { background: rgba(248,81,73,.2); }
+  #liveBtn.active {
+    background: rgba(63,185,80,.15);
+    border-color: rgba(63,185,80,.6);
+    color: #3fb550;
+    animation: micBlink 1s ease-in-out infinite;
+  }
+  #liveBtn.speaking {
+    background: rgba(188,140,255,.2);
+    border-color: rgba(188,140,255,.6);
+    color: #bc8cff;
+    animation: none;
+  }
+  @keyframes livePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(80,220,120,.3); }
+    50% { box-shadow: 0 0 8px 2px rgba(80,220,120,.2); }
+  }
+
+  /* ── Settings popover ── */
+  #settingsBtn {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--dim);
+    font-size: 15px;
+    padding: 7px 10px;
+  }
+  #settingsBtn:hover { color: var(--text); border-color: var(--dim); }
+  .settings-pop {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    min-width: 240px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+    z-index: 20;
+    display: none;
+  }
+  .settings-pop.open { display: block; }
+  .settings-pop label {
+    display: block;
+    font: 12px/1.4 var(--mono);
+    color: var(--dim);
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+  .settings-pop label:first-child { margin-top: 0; }
+  .settings-pop select {
+    width: 100%;
+    font: 13px/1.4 inherit;
+    color: var(--text);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    outline: none;
+  }
+  .settings-pop select:focus { border-color: var(--model); }
+
+  #modelSelect {
+    font: 13px/1.4 inherit;
+    color: var(--text);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    outline: none;
+    min-width: 150px;
+    max-width: 200px;
+    cursor: pointer;
+  }
+  #modelSelect:hover { border-color: var(--model); }
+
+  .settings-wrap { position: relative; }
+  .sessions-wrap { position: relative; }
+  #sessionsBtn {
+    background: rgba(88,166,255,.08);
+    border-color: rgba(88,166,255,.35);
+    color: var(--model);
+    font-weight: 600;
+  }
+  #sessionsBtn:hover { background: rgba(88,166,255,.18); }
+  .sessions-drop {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px;
+    min-width: 200px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+    z-index: 20;
+    display: none;
+  }
+  .sessions-drop.open { display: block; }
+  .sessions-drop .sess-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    font: 13px/1.4 var(--mono);
+    color: var(--text);
+    background: none;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .sessions-drop .sess-item:hover { background: rgba(88,166,255,.12); }
+  .sessions-drop .sess-item.active { color: var(--model); font-weight: 700; }
+  .sessions-drop .sess-item .sess-label { display: block; font-size: 12px; color: var(--dim); margin-top: 2px; }
+  #sudoBtn {
+    background: rgba(126,201,143,.10);
+    border-color: rgba(126,201,143,.4);
+    color: #7ec98f;
+    font-weight: 600;
+  }
+  #sudoBtn:hover:not(:disabled) { background: rgba(126,201,143,.2); }
+  #sudoBtn.off {
+    background: rgba(255,140,140,.10);
+    border-color: rgba(255,140,140,.4);
+    color: #ff9c9c;
+  }
+  #sudoBtn.off:hover:not(:disabled) { background: rgba(255,140,140,.2); }
+  #sendBtn {
+    background: rgba(88,166,255,.12);
+    border-color: rgba(88,166,255,.4);
+    color: var(--model);
+    font-weight: 600;
+    padding: 8px 16px;
+    min-width: 72px;
+    justify-content: center;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #sendBtn:hover:not(:disabled) { background: rgba(88,166,255,.22); }
+
+  #pauseBtn {
+    background: rgba(255,170,50,.12);
+    border-color: rgba(255,170,50,.5);
+    color: #ffb347;
+    font-weight: 600;
+    padding: 8px 14px;
+  }
+  #pauseBtn:hover:not(:disabled) { background: rgba(255,170,50,.25); }
+
+  /* 8. Send button loading dots */
+  .send-dots { display: inline-flex; gap: 3px; }
+  .send-dots span {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--model);
+    animation: dotBounce .6s infinite alternate;
+  }
+  .send-dots span:nth-child(2) { animation-delay: .15s; }
+  .send-dots span:nth-child(3) { animation-delay: .3s; }
+  @keyframes dotBounce { to { transform: translateY(-3px); opacity: .4; } }
+
+  /* 5. Scroll-to-bottom button */
+  .scroll-bottom-btn {
+    position: absolute;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s, border-color .15s;
+    z-index: 5;
+  }
+  .scroll-bottom-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+  }
+  .scroll-bottom-btn:hover { border-color: var(--dim); color: var(--text); }
+
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: 90px;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--panel2);
+    border: 1px solid var(--err);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    z-index: 9;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+  <script>
+    // Apply the saved theme before first paint (no flash). Default follows the OS.
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("ismini-theme"); } catch (e) { }
+      if (t !== "light" && t !== "dark" && t !== "marble") {
+        t = (window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark";
+      }
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+</head>
+<body>
+  <header>
+    <span class="dot" id="dot"></span>
+    <span class="logo">ISMINI</span>
+    <span id="modelBadge" title="model endpoint">…</span>
+    <select id="modelSelect" title="Switch between models">
+      <option value="">Loading models...</option>
+    </select>
+    <span id="status"></span>
+    <button id="sudoBtn" title="Auto-sudo for exec commands (config.json → tools.sudo). Click to toggle — applies immediately and is saved.">sudo: …</button>
+    <button id="ttsBtn" title="Text-to-speech: read model responses aloud. Click to toggle."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg><span>TTS</span></button>
+    <button id="liveBtn" title="Live conversation mode — continuous talk. Click to start/stop. Esc to exit."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span>Live</span></button>
+    <div class="settings-wrap">
+      <button id="settingsBtn" title="Settings & Model Manager">⚙️</button>
+      <div class="settings-pop" id="settingsPop">
+        <ul class="settings-tabs">
+          <li><a href="#tab-settings">⚙️ Settings</a></li>
+          <li><a href="#tab-models">🤖 Models</a></li>
+        </ul>
+        <div id="tab-settings" class="settings-tab active">
+          <label>TTS Voice</label>
+          <select id="ttsVoiceSel"></select>
+          <label>STT Language</label>
+          <select id="sttLangSel"></select>
+        </div>
+        <div id="tab-models" class="settings-tab">
+          <h3>HuggingFace Model Manager</h3>
+          <input type="text" id="hfSearch" placeholder="Search models..." />
+          <button id="hfSearchBtn">Search</button>
+          <div id="hfModelList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="themes" role="group" aria-label="Theme">
+      <button id="themePapyrus" title="Papyrus — ancient scroll">Papyrus</button>
+      <button id="themeStars" title="Stars — night sky">Stars</button>
+      <button id="themeMarble" title="Marble — black marble">Marble</button>
+    </div>
+    <div class="sessions-wrap">
+      <button id="sessionsBtn" title="Switch between recent sessions">Sessions</button>
+      <div class="sessions-drop" id="sessionsDrop"></div>
+    </div>
+    <button id="newBtn" title="Start a new conversation">New chat</button>
+    <button id="updateBtn" title="Check for updates">Update</button>
+  </header>
+
+  <main id="scroll">
+    <div class="inner" id="chat"></div>
+  </main>
+
+  <footer>
+    <button class="scroll-bottom-btn" id="scrollBtn" title="Scroll to latest">↓</button>
+    <div class="image-attachment" id="imageAttachment" hidden>
+      <img id="imagePreview" alt="Image to attach">
+      <span class="image-attachment-name" id="imageName"></span>
+      <button id="removeImageBtn" title="Remove attached image" aria-label="Remove attached image">×</button>
+    </div>
+    <div class="composer">
+      <button id="fileBtn" title="Pick a file — opens your desktop file picker and inserts the path here">📄</button>
+      <button id="folderBtn" title="Pick a folder — opens your desktop folder picker and inserts the path here">📁</button>
+      <button id="imageBtn" title="Attach an image for the model to analyze">🖼️</button>
+      <input id="imageInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+      <button id="micBtn" title="Voice input — click to start/stop listening">🎤</button>
+      <textarea id="input" rows="1" placeholder="Message ismini…  (Enter to send, Shift+Enter for a new line)"></textarea>
+      <button id="pauseBtn" title="Pause — type a suggestion to redirect" style="display:none">⏸ Pause</button>
+      <button id="sendBtn">Send</button>
+    </div>
+    <div class="app-version" aria-label="Ismini version">Ismini v__ISMINI_VERSION__</div>
+  </footer>
+
+  <div id="toast"></div>
+
+<script type="module">
+import { createLiveResponseTracker } from "/live-tts.js";
+
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const liveResponse = createLiveResponseTracker();
+  const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn"),
+        newBtn = $("newBtn"), dot = $("dot"), badge = $("modelBadge"),
+        modelSelect = $("modelSelect"),
+        statusEl = $("status"), toastEl = $("toast"), scroll = $("scroll"),
+        scrollBtn = $("scrollBtn"), pauseBtn = $("pauseBtn"),
+        imageBtn = $("imageBtn"), imageInput = $("imageInput"),
+        imageAttachment = $("imageAttachment"), imagePreview = $("imagePreview"),
+        imageName = $("imageName");
+
+  let busy = false;
+  let attachedImage = null;
+  let liveBubble = null;   // streaming model bubble
+  let liveText = "";
+  let toastTimer = null;
+
+  // ── helpers ─────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  const stripAnsi = (s) => s.replace(/\x1b\[[0-9;]*m/g, "");
+
+  function inline(s) {
+    let out = esc(s);
+    out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+    out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    out = out.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    return out;
+  }
+
+  // small markdown renderer: fences, inline code, bold, links, headings,
+  // bullet/numbered lists (flat), and tables
+  function renderMd(src) {
+    const lines = stripAnsi(String(src)).replace(/\r\n/g, "\n").split("\n");
+    let html = "", inCode = false, codeBuf = [], listBuf = [];
+    let indentCode = false, indentBuf = [];
+    const flushList = () => {
+      if (listBuf.length) {
+        // Determine if this is an ordered or unordered list from the first item
+        const isOrdered = /^\d+\. /.test(listBuf[0].raw);
+        const tag = isOrdered ? "ol" : "ul";
+        html += "<" + tag + ">" + listBuf.map((li) => "<li>" + inline(li.text) + "</li>").join("") + "</" + tag + ">";
+        listBuf = [];
+      }
+    };
+    const flushIndent = () => {
+      if (indentBuf.length) {
+        html += '<pre class="code"><code>' + esc(indentBuf.join("\n")) + "</code></pre>";
+        indentBuf = [];
+        indentCode = false;
+      }
+    };
+    for (const raw of lines) {
+      const t = raw.trim();
+      // Fenced code block (``` ... ```)
+      if (!inCode && /^```/.test(t)) { flushIndent(); flushList(); inCode = true; codeBuf = []; continue; }
+      if (inCode) {
+        if (/^```/.test(t)) {
+          inCode = false;
+          html += '<pre class="code"><code>' + esc(codeBuf.join("\n")) + "</code></pre>";
+        } else codeBuf.push(raw);
+        continue;
+      }
+      // Indented code block (4+ spaces)
+      if (/^    \S/.test(raw)) {
+        flushList();
+        indentCode = true;
+        indentBuf.push(raw.replace(/^    /, "")); // strip one level of indent
+        continue;
+      } else if (indentCode) {
+        flushIndent();
+      }
+      // List item: bullet (-, *, +) or numbered (1.)
+      const m = t.match(/^([-*+] |\d+\. )(.*)$/);
+      if (m) {
+        listBuf.push({ raw: t, text: m[2] });
+        continue;
+      }
+      flushList();
+      if (!t) continue;
+      if (/^#{1,4} /.test(t)) html += "<h4>" + inline(t.replace(/^#{1,4} /, "")) + "</h4>";
+      else if (/^\|.*\|$/.test(t)) {
+        // Table row: split cells; skip the |---|---| separator line
+        const cells = t.slice(1, -1).split("|").map((c) => c.trim());
+        if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue;
+        html += '<div class="trow">' + cells.map((c) => "<span>" + inline(c) + "</span>").join("") + "</div>";
+      }
+      else html += "<p>" + inline(t) + "</p>";
+    }
+    if (inCode && codeBuf.length) html += '<pre class="code"><code>' + esc(codeBuf.join("\n")) + "</code></pre>";
+    flushIndent();
+    flushList();
+    return html;
+  }
+
+  // 6. Timestamp helper
+  function ts() {
+    const d = new Date();
+    return d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
+  }
+
+  // 2. Add copy buttons to all code blocks in a container
+  function addCopyButtons(container) {
+    container.querySelectorAll("pre.code").forEach((pre) => {
+      if (pre.querySelector(".copy-btn")) return; // already added
+      const btn = document.createElement("button");
+      btn.className = "copy-btn";
+      btn.textContent = "copy";
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const code = pre.querySelector("code");
+        const text = code ? code.textContent : pre.textContent;
+        navigator.clipboard.writeText(text).then(() => {
+          btn.textContent = "copied!";
+          btn.classList.add("copied");
+          setTimeout(() => { btn.textContent = "copy"; btn.classList.remove("copied"); }, 1500);
+        });
+      });
+      pre.appendChild(btn);
+    });
+  }
+
+  // ── DOM builders ────────────────────────────────────────────────
+  function scrollBottom() { scroll.scrollTop = scroll.scrollHeight; }
+
+  const USER_AVATAR = '<svg class="avatar-user" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="5" r="3" fill="var(--user)"/><path d="M2.5 14c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4" fill="var(--user)" opacity=".6"/></svg>';
+
+  function addUser(content) {
+    hideEmpty();
+    const el = document.createElement("div");
+    el.className = "msg user";
+    const b = document.createElement("div");
+    b.className = "bubble";
+    const parts = Array.isArray(content) ? content : [];
+    const text = Array.isArray(content)
+      ? parts.filter((part) => part?.type === "text" && typeof part.text === "string").map((part) => part.text).join("\n")
+      : String(content ?? "");
+    b.innerHTML = '<div class="who">' + USER_AVATAR + '</div>' + (text ? renderMd(text) : "");
+    for (const part of parts) {
+      const src = part?.type === "image_url" ? part.image_url?.url : "";
+      if (typeof src !== "string" || !/^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/]+=*$/.test(src)) continue;
+      const image = document.createElement("img");
+      image.className = "user-image";
+      image.alt = "Attached image";
+      image.loading = "lazy";
+      image.src = src;
+      b.appendChild(image);
+    }
+    const stamp = document.createElement("div");
+    stamp.className = "timestamp";
+    stamp.textContent = ts();
+    b.appendChild(stamp);
+    el.appendChild(b);
+    chat.appendChild(el);
+    addCopyButtons(b);
+    scrollBottom();
+    return el;
+  }
+
+  function addModel(text, streaming) {
+    hideEmpty();
+    const el = document.createElement("div");
+    el.className = "msg model";
+    const b = document.createElement("div");
+    b.className = "bubble";
+    b.innerHTML =
+      '<div class="who"><img class="avatar" src="/favicon-256.png" alt=""> ISMINI</div>' +
+      renderMd(text) +
+      (streaming ? '<span class="cursor"></span>' : '<div class="timestamp">' + ts() + '</div>');
+    el.appendChild(b);
+    chat.appendChild(el);
+    addCopyButtons(b);
+    scrollBottom();
+    return b;
+  }
+
+  // 11. Tool icon SVG
+  const TOOL_ICON = '<span class="tool-icon">🛠️</span>';
+
+  function addTool(name, result) {
+    closeLive();
+    hideEmpty();
+    const el = document.createElement("details");
+    el.className = "toolcard";
+    const sum = document.createElement("summary");
+    sum.innerHTML = TOOL_ICON + "<span>" + esc(name) + "</span>";
+    const pre = document.createElement("pre");
+    pre.textContent = stripAnsi(String(result)).slice(0, 20000);
+    el.appendChild(sum);
+    el.appendChild(pre);
+    chat.appendChild(el);
+    scrollBottom();
+  }
+
+  function addBanner(kind, text) {
+    const el = document.createElement("div");
+    el.className = "banner " + (kind === "warn" ? "warn" : "error");
+    el.textContent = text;
+    chat.appendChild(el);
+    scrollBottom();
+  }
+
+  // ── Confirmation prompt for destructive / privileged tools ────────────────
+  let confirmEl = null;
+  function showConfirm(tool, detail) {
+    hideConfirm();
+    const el = document.createElement("div");
+    el.className = "confirmcard";
+    const label = { exec: "Run command", write: "Write file", edit: "Edit file", delete: "Delete" }[tool] || ("Use tool: " + tool);
+    const head = document.createElement("div");
+    head.className = "confirm-head";
+    head.textContent = "⚠️ ismini wants to: " + label;
+    const pre = document.createElement("pre");
+    pre.className = "confirm-detail";
+    pre.textContent = String(detail || "").slice(0, 2000);
+    const row = document.createElement("div");
+    row.className = "confirm-actions";
+    const yes = document.createElement("button");
+    yes.className = "btn confirm-yes"; yes.textContent = "Allow";
+    const no = document.createElement("button");
+    no.className = "btn confirm-no"; no.textContent = "Deny";
+    yes.addEventListener("click", () => answerConfirm(true));
+    no.addEventListener("click", () => answerConfirm(false));
+    row.appendChild(yes); row.appendChild(no);
+    el.appendChild(head); el.appendChild(pre); el.appendChild(row);
+    chat.appendChild(el);
+    confirmEl = el;
+    scrollBottom();
+  }
+  function hideConfirm() { if (confirmEl) { confirmEl.remove(); confirmEl = null; } }
+  async function answerConfirm(approved) {
+    const el = confirmEl;
+    if (el) { // disable buttons so a double-click can't send twice
+      el.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    }
+    try { await fetch("/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approved }) }); }
+    catch {}
+  }
+
+  // 7. Empty state with icon
+  function emptyState() {
+    if (chat.children.length) return;
+    
+    const isFirstVisit = !localStorage.getItem('ismini-first-visit');
+    if (isFirstVisit) localStorage.setItem('ismini-first-visit', 'true');
+    
+    const modelStatus = badge.textContent === 'model offline' ? '<p class="no-model"><img src="/favicon-256.png" style="width:32px;vertical-align:middle"> No model loaded</p>' : '';
+    
+    chat.innerHTML =
+      '<div class="empty">' +
+      '<img class="hero" src="/2.jpeg" alt="ismini in action">' +
+      '<img class="icon" src="/favicon-256.png" alt="ismini">' +
+      '<div class="big">ISMINI</div>' +
+      modelStatus +
+      '<p><strong>Welcome to ismini!</strong></p>' +
+      "<p>Your minimal local AI assistant. Works with any model in LM Studio.</p>" +
+      (modelStatus ? 
+        '<p style="color:var(--dim);font-size:0.9em">1️⃣ Open <a href="https://lmstudio.ai" target="_blank">LM Studio</a></p>' +
+        '<p style="color:var(--dim);font-size:0.9em">2️⃣ Load any model (qwen, gemma, llama...)</p>' +
+        '<p style="color:var(--dim);font-size:0.9em">3️⃣ Come back here and type "hi"</p>' :
+        '<p style="color:var(--dim)">Type a message or use the model dropdown to switch models</p>') +
+      // New user guidance - always show helpful tips
+      '<hr style="border:none;border-top:1px solid var(--border);margin:8px auto">' +
+      '<p><strong>💡 New here?</strong></p>' +
+      '<p style="color:var(--dim);font-size:0.9em">• ismini needs a model loaded in LM Studio</p>' +
+      '<p style="color:var(--dim);font-size:0.9em">• Click the 📄 or 📁 buttons to pick files from your desktop</p>' +
+      '<p style="color:var(--dim);font-size:0.9em">• Use the model dropdown above to switch between models</p>' +
+      '<img class="cogito" src="/cogito.jpeg" alt="Cogito, ergo sum">' +
+      '</div>';
+  }
+  function hideEmpty() {
+    const e = chat.querySelector(".empty");
+    if (e) e.remove();
+  }
+
+  // ── streaming bubble ────────────────────────────────────────────
+  function openLive() {
+    if (liveBubble) return;
+    liveText = "";
+    liveBubble = addModel("", true);
+  }
+  function closeLive() {
+    if (liveBubble) {
+      liveBubble.innerHTML =
+        '<div class="who"><img class="avatar" src="/favicon-256.png" alt=""> ISMINI</div>' +
+        (liveText ? renderMd(liveText) : '<p style="color:var(--dim)">(no text)</p>') +
+        '<div class="timestamp">' + ts() + '</div>';
+      addCopyButtons(liveBubble);
+      liveBubble = null;
+      liveText = "";
+      scrollBottom();
+    }
+  }
+  function onToken(text) {
+    text = stripAnsi(text);
+    if (/^[\s─\u2500]*$/.test(text)) return; // terminal box border → skip
+    openLive();
+    liveText += text;
+    if (window.__isminiLiveOnDone) liveResponse.update(liveText);
+    liveBubble.innerHTML =
+      '<div class="who"><img class="avatar" src="/favicon-256.png" alt=""> ISMINI</div>' +
+      renderMd(liveText) + '<span class="cursor"></span>';
+    scrollBottom();
+  }
+
+  // ── UI state ────────────────────────────────────────────────────
+  // 8. Send button loading state
+  function setSendBtnState(isBusy) {
+    if (isBusy) {
+      sendBtn.innerHTML = '<span class="send-dots"><span></span><span></span><span></span></span>';
+    } else {
+      sendBtn.textContent = "Send";
+    }
+  }
+
+  function setBusy(v) {
+    busy = v;
+    dot.classList.toggle("busy", v);
+    statusEl.textContent = v ? "busy" : "";
+    statusEl.classList.toggle("active", v);
+    sendBtn.disabled = v;
+    newBtn.disabled = v;
+    pauseBtn.style.display = v ? "" : "none";
+    pauseBtn.disabled = false;
+    setSendBtnState(v);
+  }
+
+  pauseBtn.addEventListener("click", async () => {
+    pauseBtn.disabled = true;
+    pauseBtn.textContent = "…";
+    // Fallback: if "paused" SSE doesn't arrive within 5s, force-unlock
+    const fallback = setTimeout(() => {
+      if (busy) {
+        setBusy(false);
+        toast("Paused (forced) — you can type now");
+        statusEl.textContent = "paused";
+        statusEl.classList.add("active");
+        input.focus();
+      }
+      pauseBtn.disabled = false;
+      pauseBtn.textContent = "⏸ Pause";
+    }, 5000);
+    try {
+      await fetch("/pause", { method: "POST" });
+      // If "paused" event arrives, it will call setBusy(false) and we clear the fallback
+      const check = setInterval(() => {
+        if (!busy) { clearTimeout(fallback); clearInterval(check); pauseBtn.disabled = false; pauseBtn.textContent = "⏸ Pause"; }
+      }, 200);
+      setTimeout(() => clearInterval(check), 6000);
+    }
+    catch { clearTimeout(fallback); pauseBtn.disabled = false; pauseBtn.textContent = "⏸ Pause"; }
+  });
+
+  // ── Model switching UI ────────────────────────────────────────
+  async function loadModels() {
+    try {
+      const r = await fetch("/api/models");
+      if (!r.ok) throw new Error('Failed to fetch models');
+      const j = await r.json();
+      let selectedId = badge.textContent;
+      const loadedModel = (j.models || []).find(m => m.loaded);
+      if (loadedModel && loadedModel.id) selectedId = loadedModel.id;
+      populateModelSelect(j.models || [], selectedId);
+    } catch (err) {
+      console.warn('[ismini] Could not load model list:', err.message);
+      if (badge.textContent && badge.textContent !== 'model offline' && badge.textContent !== '…') {
+        populateModelSelect([{ id: badge.textContent, loaded: true }], badge.textContent);
+      } else {
+        modelSelect.innerHTML = '<option value="">Loading models...</option>';
+      }
+    }
+  }
+
+  function populateModelSelect(models, selectedId) {
+    if (!models || !Array.isArray(models) || models.length === 0) {
+      modelSelect.innerHTML = '<option value="">No models found</option>';
+      return;
+    }
+    const options = models.map(m => {
+      // Use name if available and not empty, otherwise fallback to id
+      const displayName = (m.name && m.name.trim() !== '') ? m.name : (m.id || '');
+      const label = m.loaded ? displayName + ' ✅' : displayName + ' ⚠️';
+      return '<option value="' + esc(m.id) + '" ' + (selectedId === m.id ? 'selected' : '') + '>' + label + '</option>';
+    }).join('');
+    modelSelect.innerHTML = options;
+  }
+
+  modelSelect.addEventListener("change", async () => {
+    const targetId = modelSelect.value;
+    if (!targetId) return;
+    try {
+      const r = await fetch("/api/model/switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ modelId: targetId }),
+      });
+      if (!r.ok) {
+        const j = await r.json();
+        toast(j.error || 'Failed to switch model');
+        loadModels();
+      } else {
+        toast('Model switched: ' + targetId);
+        loadModels();
+      }
+    } catch (err) {
+      toast('Switch failed: ' + err.message);
+    }
+  });
+
+  // Download model from HuggingFace
+  async function downloadModel(modelId) {
+    try {
+      const r = await fetch("/api/model/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ modelId })
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Download failed');
+      toast(`Model downloaded to ${j.path}`);
+    } catch (err) {
+      toast('Download failed: ' + err.message);
+    }
+  }
+
+  // HuggingFace model search
+  async function searchHuggingFaceModels(query, limit = 10) {
+    try {
+      const r = await fetch(`/api/huggingface/models?search=${encodeURIComponent(query)}&limit=${limit}`);
+      if (!r.ok) throw new Error('Search failed');
+      const data = await r.json();
+      return data.models || [];
+    } catch (err) {
+      console.error('[hf] Search error:', err.message);
+      return [];
+    }
+  }
+
+  function setModel(id) {
+    const short = id ? id.split("/").pop() : "model offline";
+    badge.textContent = short;
+    badge.title = id ? "loaded model" : "no model detected at the configured endpoint";
+    dot.classList.toggle("on", !!id);
+    if (modelSelect && modelSelect.options) {
+      for (let i = 0; i < modelSelect.options.length; i++) {
+        if (modelSelect.options[i].value === id) {
+          modelSelect.selectedIndex = i;
+          break;
+        }
+      }
+    }
+  }
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2600);
+  }
+
+  // 5. Scroll-to-bottom button logic
+  function updateScrollBtn() {
+    const threshold = 80;
+    const distFromBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight;
+    scrollBtn.classList.toggle("visible", distFromBottom > threshold);
+  }
+  scroll.addEventListener("scroll", updateScrollBtn);
+  scrollBtn.addEventListener("click", () => { scrollBottom(); });
+
+  // ── Live-mode confirmation gate ───────────────────────────────────────────
+  // Ambient audio (a TV, another person talking) can be transcribed and would
+  // otherwise auto-send after VAD_TIMEOUT. In live mode we hold the transcript
+  // and require an explicit tap before it is sent — so only YOU trigger actions.
+  let livePending = null;
+  function showLiveConfirm(text) {
+    hideLiveConfirm();
+    const el = document.createElement("div");
+    el.className = "confirmcard";
+    const head = document.createElement("div");
+    head.className = "confirm-head";
+    const snippet = text.slice(0, 120) + (text.length > 120 ? "…" : "");
+    head.textContent = "🎙️ Heard: “" + snippet + "” — tap to send:";
+    const row = document.createElement("div");
+    row.className = "confirm-actions";
+    const yes = document.createElement("button");
+    yes.className = "btn confirm-yes"; yes.textContent = "Send";
+    const no = document.createElement("button");
+    no.className = "btn confirm-no"; no.textContent = "Ignore";
+    yes.addEventListener("click", () => { hideLiveConfirm(); send(); });
+    no.addEventListener("click", () => { input.value = ""; autosize(); lastInputValue = ""; lastChangeTime = 0; hideLiveConfirm(); resumeMicIfLive(); });
+    row.appendChild(yes); row.appendChild(no);
+    el.appendChild(head); el.appendChild(row);
+    chat.appendChild(el);
+    livePending = { text, el };
+    scrollBottom();
+  }
+  function hideLiveConfirm() { if (livePending) { livePending.el.remove(); livePending = null; } }
+  function resumeMicIfLive() {
+    // Re-open the mic so the live loop continues after a confirm/ignore.
+    if (window.__isminiResumeMic) window.__isminiResumeMic();
+  }
+
+  // ── actions ─────────────────────────────────────────────────────
+  async function send() {
+    const text = input.value.trim();
+    const image = attachedImage;
+    if ((!text && !image) || busy) return;
+    if (window.__isminiLiveOnDone) liveResponse.begin();
+    if (window.__isminiStopMic) window.__isminiStopMic(); // auto-stop mic on send
+    const messageText = text || (image ? "What is in this image?" : "");
+    const content = image
+      ? [
+        { type: "text", text: messageText },
+        { type: "image_url", image_url: { url: image.dataUrl } },
+      ]
+      : messageText;
+    // Clear the box only AFTER the server accepts the message — a failed send
+    // must not destroy what the user typed.
+    const clearInput = () => { input.value = ""; setAttachedImage(null); autosize(); };
+    addUser(content);
+    setBusy(true);
+    try {
+      const r = await fetch("/send", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: messageText, image }),
+      });
+      if (r.status === 409) {
+        setBusy(true);
+        toast("Agent is busy with the previous turn — one moment");
+      } else if (!r.ok) {
+        setBusy(false);
+        const j = await r.json().catch(() => ({}));
+        toast(j.error || "send failed (" + r.status + ")");
+      } else {
+        clearInput(); // accepted — safe to clear
+      }
+    } catch (e) {
+      setBusy(false);
+      toast("network error: " + e.message);
+    }
+  }
+
+  // Guard: if the tab was backgrounded and we miss the 'done' event, recover
+  // from the server state once the user focuses the page again.
+  window.addEventListener("focus", async () => {
+    if (!busy) return;
+    try {
+      const r = await fetch("/state");
+      const j = await r.json();
+      if (!j.busy) setBusy(false);
+    } catch { /* server gone; EventSource will retry */ }
+  });
+
+  async function newChat() {
+    if (busy || newBtn.disabled) return;
+    newBtn.disabled = true;
+    cancelSpeech();
+    try {
+      const r = await fetch("/new", { method: "POST" });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `new chat failed (${r.status})`);
+      }
+      closeLive();
+      chat.innerHTML = "";
+      emptyState();
+      await loadSessions();
+    } catch (err) {
+      toast(`new chat failed: ${err.message}`);
+    } finally {
+      newBtn.disabled = busy;
+    }
+  }
+
+  function autosize() {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 160) + "px";
+  }
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  sendBtn.addEventListener("click", send);
+  newBtn.addEventListener("click", newChat);
+
+  // ── Update button: check for and install new releases on GitHub
+  const updateBtn = $("updateBtn");
+  async function checkForUpdates() {
+    if (updateBtn.disabled) return;
+    updateBtn.disabled = true;
+    try {
+      const r = await fetch("/api/check-update");
+      if (!r.ok) throw new Error("Failed to check for updates");
+      const data = await r.json();
+      if (data.hasUpdate) {
+        // Show release notes and install button
+        const bodyText = data.body || "Release notes not available";
+        const updateMsg = `New version v${data.latestVersion} is available!\n\n${bodyText.substring(0, 300)}${bodyText.length > 300 ? '...' : ''}\n\nClick OK to download and install automatically.`;
+        if (confirm(updateMsg)) {
+          // Download and install the update
+          const installResp = await fetch("/api/download-update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tagName: data.tagName || 'v' + data.latestVersion })
+          });
+          if (!installResp.ok) {
+            const errData = await installResp.json();
+            throw new Error(errData.error || 'Installation failed');
+          }
+          const installData = await installResp.json();
+          alert(installData.message);
+          toast(`Update installed! Restart ismini to apply changes.`);
+        } else {
+          // User cancelled - open release page anyway
+          window.open(data.releaseUrl, "_blank");
+        }
+      } else {
+        toast(`You are on the latest version (v${data.currentVersion}) ✅`);
+      }
+    } catch (err) {
+      toast(`Update failed: ${err.message}`);
+    } finally {
+      updateBtn.disabled = false;
+    }
+  }
+  updateBtn.addEventListener("click", checkForUpdates);
+
+  // ── Session picker: load/switch between last 3 sessions ─────────────────
+  const sessionsBtn = $("sessionsBtn");
+  const sessionsDrop = $("sessionsDrop");
+
+  function fmtDateTime(ts) {
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+
+  async function loadSessions() {
+    try {
+      const r = await fetch("/api/sessions");
+      const j = await r.json();
+      sessionsDrop.innerHTML = "";
+      for (const s of j.sessions) {
+        const btn = document.createElement("button");
+        btn.className = "sess-item" + (s.active ? " active" : "");
+        btn.innerHTML = `${fmtDateTime(s.lastActive)}<span class="sess-label">${s.active ? "current" : "archived"}</span>`;
+        btn.addEventListener("click", () => {
+          sessionsDrop.classList.remove("open");
+          if (!s.active) switchSession(s.id);
+        });
+        sessionsDrop.appendChild(btn);
+      }
+    } catch { /* server not ready */ }
+  }
+
+  sessionsBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    sessionsDrop.classList.toggle("open");
+  });
+  document.addEventListener("click", () => sessionsDrop.classList.remove("open"));
+
+  async function switchSession(id) {
+    if (busy) return;
+    try {
+      const r = await fetch(`/api/sessions/switch/${id}`, { method: "POST" });
+      if (!r.ok) return;
+      // Reload the chat with the switched session's messages
+      const tr = await fetch("/transcript");
+      const j = await tr.json();
+      closeLive();
+      chat.innerHTML = "";
+      restoringTranscript = true;
+      for (const m of j.messages || []) {
+        if (m.role === "user") addUser(m.content);
+        else if (m.role === "assistant") {
+          if (m.tools) m.tools.forEach((t) => addTool(t, "(ran)"));
+          if (m.content) addModel(m.content);
+        } else if (m.role === "tool") addTool(m.name || "tool", m.content);
+      }
+      restoringTranscript = false;
+      if (!j.messages || j.messages.length === 0) emptyState();
+      loadSessions(); // refresh picker
+    } catch { /* ignore */ }
+  }
+
+  // On page load: load sessions + restore active session's transcript
+  async function initSessions() {
+    await loadSessions();
+    // If there are messages in the active session, render them
+    try {
+      const r = await fetch("/transcript");
+      const j = await r.json();
+      if (j.messages && j.messages.length > 0) {
+        restoringTranscript = true;
+        for (const m of j.messages) {
+          if (m.role === "user") addUser(m.content);
+          else if (m.role === "assistant") {
+            if (m.tools) m.tools.forEach((t) => addTool(t, "(ran)"));
+            if (m.content) addModel(m.content);
+          } else if (m.role === "tool") addTool(m.name || "tool", m.content);
+        }
+        restoringTranscript = false;
+        hideEmpty();
+      }
+    } catch { /* first visit — empty state already shown */ }
+  }
+
+  // ── Theme picker: Papyrus / Stars / Marble (persisted in localStorage, applied pre-paint in <head>) ──
+  const themeBtns = { papyrus: $("themePapyrus"), stars: $("themeStars"), marble: $("themeMarble") };
+  function curThemeName() {
+    const t = document.documentElement.getAttribute("data-theme");
+    return t === "light" ? "papyrus" : t === "marble" ? "marble" : "stars";
+  }
+  function paintThemeBtns() {
+    const cur = curThemeName();
+    for (const [name, btn] of Object.entries(themeBtns)) btn.classList.toggle("active", name === cur);
+  }
+  function setTheme(name) {
+    const value = name === "papyrus" ? "light" : name; // papyrus→light, stars→dark, marble→marble
+    document.documentElement.setAttribute("data-theme", value);
+    try { localStorage.setItem("ismini-theme", value); } catch (e) { }
+    paintThemeBtns();
+  }
+  paintThemeBtns();
+  for (const [name, btn] of Object.entries(themeBtns)) btn.addEventListener("click", () => setTheme(name));
+
+  // ── sudo toggle (header) ──────────────────────────────────────
+  // Flips tools.sudo in config.json AND applies live to the running
+  // agent (no restart). Green = ON (exec gets the sudo -n prefix),
+  // red = OFF (exec runs as the normal user).
+  const sudoBtn = $("sudoBtn");
+  let sudoOn = false; // live state — also gates the Live Chat confirm (see showLiveConfirm)
+  function setSudo(on) {
+    sudoOn = !!on;
+    sudoBtn.textContent = on ? "sudo: ON" : "sudo: OFF";
+    sudoBtn.classList.toggle("off", !on);
+  }
+  async function refreshSudo() {
+    try {
+      const r = await fetch("/api/sudo");
+      const j = await r.json();
+      setSudo(!!j.enabled);
+    } catch { /* server gone — EventSource will retry */ }
+  }
+  sudoBtn.addEventListener("click", async () => {
+    if (sudoBtn.disabled) return;
+    sudoBtn.disabled = true;
+    const next = !sudoBtn.classList.contains("off") ? false : true; // current ON → turn OFF
+    try {
+      const r = await fetch("/api/sudo", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && typeof j.enabled === "boolean") {
+        setSudo(j.enabled);
+        toast(j.enabled
+          ? "sudo enabled — exec commands get the sudo -n prefix"
+          : "sudo disabled — exec runs as your normal user");
+      } else {
+        toast(j.error || "toggle failed (" + r.status + ")");
+      }
+    } catch (e) {
+      toast("toggle failed: " + e.message);
+    } finally {
+      sudoBtn.disabled = false;
+    }
+  });
+  refreshSudo();
+
+  // ── file/folder picker (native desktop dialog) ───────────────
+  // Click → server opens zenity/kdialog on the desktop → the chosen path
+  // (file or folder) is inserted into the input. Nothing is opened or
+  // uploaded — just the path, which the user can edit before sending.
+  const fileBtn = $("fileBtn"), folderBtn = $("folderBtn");
+  async function pickPath(btn, mode) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = "…";
+    try {
+      const r = await fetch("/api/pick-file?mode=" + mode);
+      const j = await r.json().catch(() => ({}));
+      if (j.ok && j.path) {
+        const cur = input.value.replace(/\s+$/, "");
+        input.value = cur ? cur + " " + j.path : j.path;
+        autosize();
+        input.focus();
+      } else if (!j.cancelled) {
+        toast(j.error || "file picker unavailable — type the path instead");
+      }
+    } catch (e) {
+      toast("file picker failed: " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  }
+  fileBtn.addEventListener("click", () => pickPath(fileBtn, "file"));
+  folderBtn.addEventListener("click", () => pickPath(folderBtn, "folder"));
+
+  function setAttachedImage(image) {
+    attachedImage = image;
+    imageAttachment.hidden = !image;
+    if (image) {
+      imagePreview.src = image.dataUrl;
+      imageName.textContent = image.name;
+    } else {
+      imagePreview.removeAttribute("src");
+      imageName.textContent = "";
+      imageInput.value = "";
+    }
+  }
+
+  imageBtn.addEventListener("click", () => imageInput.click());
+  $("removeImageBtn").addEventListener("click", () => setAttachedImage(null));
+  imageInput.addEventListener("change", () => {
+    const file = imageInput.files?.[0];
+    if (!file) return;
+    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+    if (!allowedTypes.has(file.type)) {
+      setAttachedImage(null);
+      toast("Choose a JPEG, PNG, WebP, or GIF image");
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      setAttachedImage(null);
+      toast("Image is too large (maximum 4 MiB)");
+      return;
+    }
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      if (typeof reader.result === "string") setAttachedImage({ name: file.name, dataUrl: reader.result });
+      else toast("Could not read the selected image");
+    });
+    reader.addEventListener("error", () => toast("Could not read the selected image"));
+    reader.readAsDataURL(file);
+  });
+
+  // ── SSE ─────────────────────────────────────────────────────────
+  const es = new EventSource("/events");
+  es.addEventListener("message", (e) => {
+    let ev;
+    try { ev = JSON.parse(e.data); } catch { return; }
+    switch (ev.type) {
+      case "hello":
+        setModel(ev.model);
+        setBusy(ev.busy);
+        if (ev.messages > 0) resync();
+        // Use models from hello event if available, otherwise fall back to loading
+        if (ev.models && ev.models.length > 0) {
+          populateModelSelect(ev.models, ev.model);
+        } else {
+          loadModels();
+        }
+        break;
+      case "modelList":
+        populateModelSelect(ev.models, ev.selectedId);
+        break;
+      case "token": onToken(ev.text); break;
+      case "model":
+        closeLive();
+        addModel(ev.text);
+        if (window.__isminiLiveOnDone) liveResponse.update(ev.text);
+        break;
+      case "modelSwitch": setModel(ev.id); toast("model switched: " + ev.id); break;
+      case "toast": toast(ev.msg || ev.text); break;
+      case "tool":
+        if (window.__isminiLiveOnDone) liveResponse.update("");
+        addTool(ev.name, ev.result);
+        break;
+      case "confirm": showConfirm(ev.tool, ev.detail); break;
+      case "confirmed": hideConfirm(); break;
+      case "warn": addBanner("warn", ev.text); break;
+      case "error": liveResponse.cancel(); closeLive(); addBanner("error", ev.text); break;
+      case "done": {
+        closeLive();
+        setBusy(false);
+        const onLiveDone = window.__isminiLiveOnDone;
+        if (onLiveDone) onLiveDone(liveResponse.finish());
+        break;
+      }
+      case "paused":
+        liveResponse.cancel();
+        closeLive();
+        setBusy(false);
+        statusEl.textContent = "paused — type a suggestion";
+        statusEl.classList.add("active");
+        input.focus();
+        break;
+      case "reset": liveResponse.cancel(); closeLive(); chat.innerHTML = ""; emptyState(); break;
+      // Another tab switched sessions — the server's active session changed
+      // under our feet. Rebuild from the transcript so all tabs agree.
+      case "sessionSwitched": resync(); break;
+    }
+  });
+  es.onopen = () => dot.classList.add("on");
+  es.onerror = () => {
+    dot.classList.remove("on", "busy");
+    statusEl.textContent = "reconnecting…";
+  };
+
+  // after a reconnect, rebuild the conversation from the server's session
+  async function resync() {
+    try {
+      const r = await fetch("/transcript");
+      const j = await r.json();
+      closeLive();
+      chat.innerHTML = "";
+      emptyState();
+      restoringTranscript = true;
+      for (const m of j.messages || []) {
+        if (m.role === "user") addUser(m.content);
+        else if (m.role === "assistant") {
+          if (m.tools) m.tools.forEach((t) => addTool(t, "(ran)"));
+          if (m.content) addModel(m.content);
+        } else if (m.role === "tool") addTool(m.name || "tool", m.content);
+      }
+      restoringTranscript = false;
+      setBusy(j.busy === true);
+    } catch { /* server gone; EventSource will retry */ }
+  }
+
+  // ── STT: Speech-to-Text via Web Speech API ─────────────────────
+  const micBtn = $("micBtn");
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    micBtn.style.display = "none"; // browser doesn't support it
+  } else {
+    let recognition = null;
+    let isListening = false;
+    let recGen = 0; // generation counter — invalidates stale onend events
+    let micStopPromise = Promise.resolve();
+    let finishMicStop = null;
+
+    function startListening() {
+      const gen = ++recGen;
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = (window.__isminiSttLang && window.__isminiSttLang()) || navigator.language || "en-US";
+
+      let baseText = input.value.replace(/\s+$/, "");
+      let finalTranscript = "";
+
+      recognition.onresult = (e) => {
+        if (gen !== recGen || !isListening) return; // stale or stopped
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) finalTranscript += r[0].transcript;
+          else interim += r[0].transcript;
+        }
+        input.value = (baseText ? baseText + " " : "") + finalTranscript + interim;
+        autosize();
+      };
+
+      recognition.onerror = (e) => {
+        if (gen !== recGen) return; // stale
+        if (e.error !== "no-speech" && e.error !== "aborted") {
+          toast("mic error: " + e.error);
+          stopListening();
+        }
+        // no-speech / aborted: don't stop — onend will auto-restart
+      };
+
+      recognition.onend = () => {
+        if (gen !== recGen) return; // stale — ignore
+        if (isListening) {
+          // Echo guard: don't auto-restart during discard window
+          if (Date.now() < discardUntil) return;
+          try { recognition.start(); } catch { stopListening(); }
+        }
+      };
+
+      try {
+        recognition.start();
+        isListening = true;
+        micBtn.classList.add("listening");
+        micBtn.title = "Listening… click to stop";
+      } catch (e) {
+        toast("mic start failed: " + e.message);
+      }
+    }
+
+    function stopListening() {
+      isListening = false;
+      recGen++; // invalidate any pending onend/onresult from this instance
+      if (recognition && !finishMicStop) {
+        const stoppedRecognition = recognition;
+        const originalOnEnd = stoppedRecognition.onend;
+        let resolveStop;
+        let settled = false;
+        micStopPromise = new Promise(resolve => { resolveStop = resolve; });
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          if (stoppedRecognition.onend === wrappedOnEnd) stoppedRecognition.onend = originalOnEnd;
+          finishMicStop = null;
+          resolveStop();
+        };
+        const wrappedOnEnd = function (event) {
+          try {
+            if (originalOnEnd) originalOnEnd.call(this, event);
+          } finally {
+            finish();
+          }
+        };
+        finishMicStop = finish;
+        const timeout = setTimeout(finish, 2000);
+        try { stoppedRecognition.stop(); } catch { finish(); }
+      } else if (!recognition) {
+        micStopPromise = Promise.resolve();
+      }
+      micBtn.classList.remove("listening");
+      micBtn.title = "Voice input — click to start listening";
+      input.focus();
+      return micStopPromise;
+    }
+    window.__isminiStopMic = stopListening; // expose to send()
+    window.__isminiResumeMic = () => { if (!isListening) startListening(); }; // expose to live-confirm
+
+    micBtn.addEventListener("click", () => {
+      if (isListening) stopListening();
+      else startListening();
+    });
+
+    // ── Live Mode: continuous conversation loop ────────────────
+    let liveMode = false;
+    let lastInputValue = "";
+    let lastChangeTime = 0;
+    let discardUntil = 0; // discard transcribed text until this timestamp (echo guard)
+    const VAD_TIMEOUT = 900; // ms of input stability → auto-send
+    const SPEAKER_SETTLE_MS = 3000; // wait 3s after TTS before opening mic
+    const DISCARD_MS = 1500; // discard transcribed text for 1.5s after mic opens
+    const liveBtn = $("liveBtn");
+
+    function enterLiveMode() {
+      if (liveMode) return;
+      liveMode = true;
+      liveBtn.classList.add("active");
+      window.__isminiLiveOnDone = (responseText) => {
+        if (!liveMode) return;
+        const resumeMic = () => {
+          if (!liveMode) return;
+          input.value = "";
+          autosize();
+          lastInputValue = "";
+          lastChangeTime = 0;
+          // Wait for speaker to FULLY settle, then open mic.
+          // Chrome bug: onend can fire before audio is actually done.
+          const tryOpenMic = () => {
+            if (!liveMode) return;
+            // If TTS is still speaking (Chrome fires onend early), wait
+            if ("speechSynthesis" in window && speechSynthesis.speaking) {
+              setTimeout(tryOpenMic, 500);
+              return;
+            }
+            setTimeout(() => {
+              if (!liveMode) return;
+              input.value = "";
+              autosize();
+              lastInputValue = "";
+              lastChangeTime = 0;
+              discardUntil = Date.now() + DISCARD_MS;
+              startListening();
+            }, SPEAKER_SETTLE_MS);
+          };
+          tryOpenMic();
+        };
+        const startTTS = () => {
+          if (responseText && ttsEnabled && "speechSynthesis" in window) {
+            liveBtn.classList.add("speaking");
+            const clean = textForSpeech(responseText);
+            if (clean) {
+              const u = new SpeechSynthesisUtterance(clean);
+              u.rate = 1.0;
+              u.pitch = 1.0;
+              const voices = speechSynthesis.getVoices();
+              const idx = parseInt(ttsVoiceSel.value, 10);
+              if (!isNaN(idx) && voices[idx]) u.voice = voices[idx];
+              u.onend = () => { liveBtn.classList.remove("speaking"); resumeMic(); };
+              u.onerror = () => { liveBtn.classList.remove("speaking"); resumeMic(); };
+              speechSynthesis.cancel();
+              speechSynthesis.speak(u);
+            } else { resumeMic(); }
+          } else {
+            setTimeout(resumeMic, 500);
+          }
+        };
+        micStopPromise.then(() => {
+          if (liveMode) startTTS();
+        });
+      };
+      startListening();
+    }
+
+    function exitLiveMode() {
+      liveMode = false;
+      liveBtn.classList.remove("active", "speaking");
+      window.__isminiLiveOnDone = null;
+      liveResponse.cancel();
+      stopListening();
+      if ("speechSynthesis" in window) speechSynthesis.cancel();
+    }
+
+    liveBtn.addEventListener("click", () => {
+      if (liveMode) exitLiveMode();
+      else enterLiveMode();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && liveMode) exitLiveMode();
+    });
+
+    // VAD: poll input stability → auto-send after 900ms of no change
+    setInterval(() => {
+      if (!liveMode || !isListening) return;
+      // Echo guard: discard transcribed text during discard window
+      if (Date.now() < discardUntil) {
+        if (input.value) { input.value = ""; autosize(); lastInputValue = ""; }
+        return;
+      }
+      const cur = input.value;
+      if (cur !== lastInputValue) {
+        lastInputValue = cur;
+        lastChangeTime = Date.now();
+      } else if (cur.trim() && Date.now() - lastChangeTime > VAD_TIMEOUT) {
+        // Don't auto-send while a confirm is already on screen.
+        if (livePending) return;
+        const text = cur.trim();
+        stopListening();
+        // Sudo ON: the user opted into hands-off operation — send directly
+        // (same philosophy as exec/write approvals). Sudo OFF: hold the
+        // transcript for an explicit tap so ambient audio can't trigger commands.
+        if (sudoOn) {
+          input.value = text;
+          lastInputValue = text;
+          send();
+        } else {
+          showLiveConfirm(text);
+        }
+      }
+    }, 100);
+  }
+
+  // ── TTS: Text-to-Speech via speechSynthesis ─────────────────────
+  const ttsBtn = $("ttsBtn");
+  let ttsEnabled = false;
+  try { ttsEnabled = localStorage.getItem("ismini-tts") === "1"; } catch {}
+
+  function paintTtsBtn() {
+    ttsBtn.querySelector("span").textContent = ttsEnabled ? "TTS" : "Muted";
+    ttsBtn.querySelector("svg").style.opacity = ttsEnabled ? "1" : "0.4";
+    ttsBtn.classList.toggle("off", !ttsEnabled);
+  }
+  paintTtsBtn();
+
+  // Strip markdown/code for natural speech
+  function textForSpeech(raw) {
+    let t = String(raw);
+    // Strip emojis (all common ranges + ZWJ sequences + variation selectors)
+    t = t.replace(/\p{Extended_Pictographic}/gu, "");
+    t = t.replace(/[\u{1F3FB}-\u{1F3FF}\u{FE0F}\u{200D}]/gu, "");
+    t = t.replace(/```[\s\S]*?```/g, " ");          // code blocks
+    t = t.replace(/`([^`]+)`/g, "$1");              // inline code
+    t = t.replace(/\*\*([^*]+)\*\*/g, "$1");        // bold
+    t = t.replace(/\*([^*]+)\*/g, "$1");            // italic
+    t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");  // links → text
+    t = t.replace(/^#{1,6} /gm, "");               // headings
+    t = t.replace(/^[-*] /gm, "");                 // list bullets
+    t = t.replace(/^\d+\. /gm, "");                // numbered lists
+    t = t.replace(/https?:\/\/\S+/g, " link ");    // bare URLs
+    t = t.replace(/\s{2,}/g, " ");                 // collapse whitespace
+    return t.trim();
+  }
+
+
+
+  // Hook into model completion: speak when a model message finishes
+  const _origCloseLive = closeLive;
+  closeLive = function () {
+    const text = liveText;
+    _origCloseLive();
+    if (text && !window.__isminiLiveOnDone) speak(text);
+  };
+
+  // Also speak non-streaming model messages (SSE "model" event)
+  let restoringTranscript = false;
+  const _origAddModel = addModel;
+  addModel = function (text, streaming) {
+    const el = _origAddModel(text, streaming);
+    if (!streaming && !restoringTranscript && !window.__isminiLiveOnDone) speak(text);
+    return el;
+  };
+
+  ttsBtn.addEventListener("click", () => {
+    ttsEnabled = !ttsEnabled;
+    paintTtsBtn();
+    try { localStorage.setItem("ismini-tts", ttsEnabled ? "1" : "0"); } catch {}
+    if (!ttsEnabled) cancelSpeech();
+    else toast("TTS on — model responses will be read aloud");
+  });
+
+  // Cancel speech when the app is hidden.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) cancelSpeech();
+  });
+
+  // ── Settings popover: voice picker + STT language ────────────────
+  const settingsBtn = $("settingsBtn");
+  const settingsPop = $("settingsPop");
+  const ttsVoiceSel = $("ttsVoiceSel");
+  const sttLangSel = $("sttLangSel");
+
+  // Common languages for STT
+  const STT_LANGS = [
+    ["en-US", "English (US)"],
+    ["en-GB", "English (UK)"],
+    ["el-GR", "Greek (Ελληνικά)"],
+    ["es-ES", "Spanish"],
+    ["fr-FR", "French"],
+    ["de-DE", "German"],
+    ["it-IT", "Italian"],
+    ["pt-BR", "Portuguese (BR)"],
+    ["nl-NL", "Dutch"],
+    ["ru-RU", "Russian"],
+    ["ja-JP", "Japanese"],
+    ["ko-KR", "Korean"],
+    ["zh-CN", "Chinese (Simplified)"],
+    ["ar-SA", "Arabic"],
+    ["tr-TR", "Turkish"],
+    ["he-IL", "Hebrew"],
+  ];
+
+  // Populate STT language select
+  let savedSttLang = "";
+  try { savedSttLang = localStorage.getItem("ismini-stt-lang") || ""; } catch {}
+  STT_LANGS.forEach(([code, label]) => {
+    const opt = document.createElement("option");
+    opt.value = code;
+    opt.textContent = label;
+    sttLangSel.appendChild(opt);
+  });
+  sttLangSel.value = savedSttLang || (navigator.language || "en-US");
+  sttLangSel.addEventListener("change", () => {
+    try { localStorage.setItem("ismini-stt-lang", sttLangSel.value); } catch {}
+  });
+
+  // Populate TTS voice select (browser voices only)
+  function populateVoices() {
+    if (!("speechSynthesis" in window)) return;
+    const voices = speechSynthesis.getVoices();
+    if (!voices.length) return;
+    ttsVoiceSel.innerHTML = "";
+    voices.sort((a, b) => {
+      if (a.localService !== b.localService) return b.localService ? 1 : -1;
+      if (a.lang !== b.lang) return a.lang.localeCompare(b.lang);
+      return a.name.localeCompare(b.name);
+    });
+    voices.forEach((v, i) => {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = v.name + "  [" + v.lang + "]";
+      ttsVoiceSel.appendChild(opt);
+    });
+    // Restore saved selection
+    let saved = NaN;
+    try { saved = parseInt(localStorage.getItem("ismini-tts-voice") || "", 10); } catch {}
+    if (!isNaN(saved) && saved < voices.length) ttsVoiceSel.value = saved;
+  }
+  populateVoices();
+  if ("speechSynthesis" in window) {
+    speechSynthesis.onvoiceschanged = populateVoices;
+  }
+  ttsVoiceSel.addEventListener("change", () => {
+    try { localStorage.setItem("ismini-tts-voice", ttsVoiceSel.value); } catch {}
+  });
+
+  // Override speak() to use selected voice
+  let speak;
+  function cancelSpeech() {
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+  }
+  speak = function (text) {
+    if (!ttsEnabled || !("speechSynthesis" in window)) return;
+    const clean = textForSpeech(text);
+    if (!clean) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(clean);
+    u.rate = 1.0;
+    u.pitch = 1.0;
+    const voices = speechSynthesis.getVoices();
+    const idx = parseInt(ttsVoiceSel.value, 10);
+    if (!isNaN(idx) && voices[idx]) u.voice = voices[idx];
+    speechSynthesis.speak(u);
+  };
+
+  // Settings popover open/close with tabs
+  let activeTab = 'tab-settings';
+  
+  function switchTab(tabId) {
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.settings-tabs a').forEach(a => a.parentElement.classList.remove('active'));
+    
+    const tabEl = $(tabId);
+    if (tabEl) {
+      tabEl.classList.add('active');
+      activeTab = tabId;
+    }
+  }
+  
+  // Tab switching
+  document.querySelectorAll('.settings-tabs a').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const tab = a.getAttribute('href').replace('#', '');
+      switchTab(tab);
+    });
+  });
+  
+  // HuggingFace search
+  function renderHfModels(models) {
+    const list = $('hfModelList');
+    if (!models || models.length === 0) {
+      list.innerHTML = '<p>No models found</p>';
+      return;
+    }
+    list.innerHTML = models.map(m => `
+      <div class="hf-model-item">
+        <strong>${m.name}</strong>
+        <span class="hf-downloads">${(m.downloads || 0).toLocaleString()} downloads</span>
+        <button onclick="downloadModel('${m.id}')">Download</button>
+        <small>${(m.description || '').substring(0, 100)}...</small>
+      </div>
+    `).join('');
+  }
+  
+  document.getElementById('hfSearchBtn')?.addEventListener('click', async () => {
+    const query = document.getElementById('hfSearch')?.value?.trim() || '';
+    if (!query) return;
+    const models = await searchHuggingFaceModels(query, 20);
+    renderHfModels(models);
+  });
+  
+  settingsBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    settingsPop.classList.toggle("open");
+  });
+  document.addEventListener("click", (e) => {
+    if (!settingsPop.contains(e.target) && e.target !== settingsBtn) {
+      settingsPop.classList.remove("open");
+    }
+  });
+
+  // Expose STT language getter for startListening
+  window.__isminiSttLang = () => sttLangSel.value;
+
+  emptyState();
+  input.focus();
+  initSessions(); // restore previous session on load
+})();
+</script>
+</body>
+</html>
